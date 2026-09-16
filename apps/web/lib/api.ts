@@ -3,6 +3,8 @@ import "server-only";
 import { getAccessToken } from "./session";
 import type {
   ApplicationVersion,
+  ApiKey,
+  ApiKeyCreateResponse,
   AuthTokenPair,
   Dataset,
   DatasetCase,
@@ -22,10 +24,11 @@ import type {
   Workspace
 } from "./types";
 
-const API_URL =
-  process.env.AGENTGUARD_API_URL ??
-  process.env.NEXT_PUBLIC_AGENTGUARD_API_URL ??
-  "http://localhost:8000";
+function normalizeApiUrl(value: string): string {
+  return /^https?:\/\//.test(value) ? value : `http://${value}`;
+}
+
+const API_URL = normalizeApiUrl(process.env.AGENTGUARD_API_URL ?? "http://localhost:8000");
 const REQUEST_TIMEOUT_MS = 1200;
 
 export function getApiUrl(): string {
@@ -136,6 +139,20 @@ export async function createProject(input: {
 
 export async function listWorkspaces(): Promise<Workspace[]> {
   return request<Workspace[]>("/api/v1/security/workspaces");
+}
+
+export async function listApiKeys(): Promise<ApiKey[]> {
+  return request<ApiKey[]>("/api/v1/security/api-keys");
+}
+
+export async function createApiKey(input: {
+  workspace_id: string;
+  name: string;
+}): Promise<ApiKeyCreateResponse> {
+  return request<ApiKeyCreateResponse>("/api/v1/security/api-keys", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
 }
 
 export async function listProviders(): Promise<ProviderIntegration[]> {

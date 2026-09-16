@@ -13,9 +13,10 @@ def test_demo_agent_success(monkeypatch):
     monkeypatch.delenv("DEMO_AGENT_PROVIDER", raising=False)
     client = AgentGuard(base_url="http://agentguard.test", project="research-agent", version="v1")
 
-    answer = answer_question(client, "What is AgentGuard?")
+    answer = answer_question(client, "What is AgentGuard?", dataset_case_id="case-1")
 
     assert "AgentGuard captures traces" in answer
+    assert captured["payload"]["input"]["dataset_case_id"] == "case-1"
     assert [span["type"] for span in captured["payload"]["spans"]] == [
         "LLM",
         "RETRIEVER",

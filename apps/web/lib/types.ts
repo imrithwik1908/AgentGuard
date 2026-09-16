@@ -219,6 +219,21 @@ export interface AuthTokenPair {
   workspace: Workspace;
 }
 
+export interface ApiKey {
+  id: string;
+  workspace_id: string;
+  name: string;
+  prefix: string;
+  is_active: boolean;
+  last_used_at: string | null;
+  created_at: string;
+}
+
+export interface ApiKeyCreateResponse {
+  api_key: string;
+  record: ApiKey;
+}
+
 export interface ProviderIntegration {
   id: string;
   workspace_id: string;

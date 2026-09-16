@@ -40,7 +40,12 @@ export function TraceTable({
                   <Link className="font-medium text-ink-950 hover:underline" href={`/traces/${trace.id}`}>
                     {trace.name}
                   </Link>
-                  <div className="mt-1 text-xs text-slate-500">{trace.external_trace_id ?? trace.id}</div>
+                  <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
+                    <span>{trace.spans.length} recorded steps</span>
+                    {trace.external_trace_id ? (
+                      <span className="font-mono">external {trace.external_trace_id}</span>
+                    ) : null}
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-slate-700">{project?.name ?? trace.project_id}</td>
                 <td className="px-4 py-3 text-slate-700">{version?.version ?? trace.application_version_id}</td>

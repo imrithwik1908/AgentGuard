@@ -154,6 +154,7 @@ class EvaluationJobRead(BaseModel):
 
     id: UUID
     request_id: str
+    queue_job_id: str | None
     project_id: UUID
     dataset_id: UUID
     application_version_id: UUID

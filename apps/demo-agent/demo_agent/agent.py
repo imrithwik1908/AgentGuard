@@ -34,9 +34,26 @@ def retrieve(question: str) -> list[dict[str, str]]:
         score = sum(1 for term in terms if term and term in text)
         if score:
             scored.append((score, doc))
-    return [
-        doc for _, doc in sorted(scored, key=lambda item: item[0], reverse=True)
+    ranked = [
+        doc
+        for _, doc in sorted(
+            scored,
+            key=lambda item: item[0],
+            reverse=True,
+        )
     ] or DOCUMENTS[:1]
+
+    top_k = max(
+        1,
+        int(
+            os.getenv(
+                "DEMO_RETRIEVAL_TOP_K",
+                "2",
+            )
+        ),
+    )
+
+    return ranked[:top_k]
 
 
 def summarize_documents(documents: list[dict[str, str]]) -> dict[str, int]:
@@ -90,8 +107,22 @@ def generate_openai_compatible_answer(question: str, documents: list[dict[str, s
     return str(body["choices"][0]["message"]["content"])
 
 
-def answer_question(client: AgentGuard, question: str) -> str:
-    with client.trace("answer-question", input={"question": question}) as trace:
+def answer_question(
+    client: AgentGuard,
+    question: str,
+    dataset_case_id: str | None = None,
+) -> str:
+
+    trace_input = {
+        "question": question,
+    }
+
+    if dataset_case_id is not None:
+        trace_input["dataset_case_id"] = (
+            dataset_case_id
+        )
+
+    with client.trace("answer-question", input=trace_input) as trace:
         with trace.span("plan", type="LLM", input={"question": question}) as span:
             plan = {"steps": ["retrieve local documents", "summarize context", "generate answer"]}
             span.set_attributes(
@@ -120,8 +151,13 @@ def answer_question(client: AgentGuard, question: str) -> str:
             input={"question": question, "documents": documents},
         ) as span:
             answer = generate_answer(question, documents)
+            provider = (
+                "openai-compatible"
+                if os.getenv("DEMO_AGENT_PROVIDER") == "openai-compatible"
+                else "local"
+            )
             span.set_attributes(
-                provider="local",
+                provider=provider,
                 model_name=os.getenv("DEMO_AGENT_OPENAI_MODEL", "deterministic-generator"),
                 input_tokens=64,
                 output_tokens=24,

@@ -87,6 +87,43 @@ export default async function HomePage({
             href: `/releases?baseline_version_id=${pair.baseline.id}&candidate_version_id=${pair.candidate.id}`
           }
         : { label: "Run a test suite", href: "/datasets" };
+  const promiseChecklist = [
+    {
+      label: "Inspect how an AI application behaved",
+      detail: `${traces.items.length} runs recorded with trace/step evidence.`,
+      ready: traces.items.length > 0,
+      href: "/traces"
+    },
+    {
+      label: "Evaluate representative cases",
+      detail: `${evaluations.items.length} stored check results across active projects.`,
+      ready: evaluations.items.length > 0,
+      href: "/evaluations"
+    },
+    {
+      label: "Compare baseline against candidate",
+      detail: pair
+        ? `${pair.baseline.version} is being compared with ${pair.candidate.version}.`
+        : "Create at least two versions in one project.",
+      ready: Boolean(pair),
+      href: "/releases"
+    },
+    {
+      label: "Catch regressions before release",
+      detail:
+        buckets.regressed.length > 0
+          ? `${buckets.regressed.length} regressed cases found.`
+          : "No paired regressions found in the current evidence.",
+      ready: Boolean(pair && comparison),
+      href: "/releases"
+    },
+    {
+      label: "Make an evidence-backed release decision",
+      detail: releaseState.title,
+      ready: releaseState.state === "PASS" || releaseState.state.startsWith("BLOCK"),
+      href: "/releases"
+    }
+  ];
 
   return (
     <div className="space-y-6">
@@ -192,6 +229,52 @@ export default async function HomePage({
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+        <div className="surface rounded-[2rem] p-5 lg:col-span-2">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="text-xs font-medium uppercase tracking-[0.2em] text-cyan-700">
+                Promise checklist
+              </div>
+              <h2 className="mt-2 text-xl font-semibold text-ink-950">
+                Is AgentGuard delivering the LinkedIn promise?
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                The goal is not to be a generic log viewer. AgentGuard should show what changed,
+                what got better or worse, why there is evidence, and whether the candidate is safe to ship.
+              </p>
+            </div>
+            <Link
+              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              href="/docs"
+            >
+              See how to use it
+            </Link>
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            {promiseChecklist.map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                className={`rounded-2xl border p-4 transition hover:-translate-y-0.5 ${
+                  item.ready
+                    ? "border-emerald-200 bg-emerald-50/70"
+                    : "border-amber-200 bg-amber-50/70"
+                }`}
+              >
+                <div
+                  className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                    item.ready ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-900"
+                  }`}
+                >
+                  {item.ready ? "Working" : "Needs data"}
+                </div>
+                <div className="mt-3 text-sm font-semibold text-ink-950">{item.label}</div>
+                <div className="mt-2 text-xs leading-5 text-slate-600">{item.detail}</div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
         <div className="surface rounded-[2rem] p-5">
           <div className="text-xs font-medium uppercase tracking-[0.2em] text-cyan-700">
             What changed?
