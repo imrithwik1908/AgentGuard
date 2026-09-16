@@ -24,6 +24,14 @@ from agentguard_api.schemas.evaluation import (
 from agentguard_api.services.errors import ConflictError, NotFoundError, ValidationError
 
 
+def _regression_tolerance(
+    evaluation: EvaluationResult,
+) -> Decimal:
+    if evaluation.method == EvaluationMethod.LLM_JUDGE:
+        return Decimal("0.0500")
+
+    return Decimal("0.0500")
+
 def _derive_status(
     *,
     score: Decimal,
@@ -530,12 +538,22 @@ async def paired_case_comparison(
         elif not baseline_eval.passed and candidate_eval.passed:
             classification = "improved"
             explanation = "The case failed in the baseline but passed in the candidate."
-        elif candidate_eval.score < baseline_eval.score:
+        elif (
+            baseline_eval.score - candidate_eval.score
+            >= _regression_tolerance(candidate_eval)
+        ):
             classification = "regressed"
-            explanation = "The candidate score is lower for the same test case and evaluator."
-        elif candidate_eval.score > baseline_eval.score:
+            explanation = (
+                "The candidate score decreased meaningfully for the same test case and evaluator."
+            )
+        elif (
+            candidate_eval.score - baseline_eval.score
+            >= _regression_tolerance(candidate_eval)
+        ):
             classification = "improved"
-            explanation = "The candidate score is higher for the same test case and evaluator."
+            explanation = (
+                "The candidate score improved meaningfully for the same test case and evaluator."
+            )
         else:
             classification = "unchanged"
             explanation = "The paired case produced equivalent evaluation evidence."
@@ -582,51 +600,82 @@ async def decide_release(
     )
 
     reasons: list[str] = []
-    if paired["not_comparable"] and not paired["regressed"] and not paired["improved"]:
-        reasons.append(
-            f"{len(paired['not_comparable'])} paired test-case evaluations are missing one side."
-        )
-    if paired["regressed"]:
-        reasons.append(f"{len(paired['regressed'])} paired test cases regressed.")
     candidate_pass_rate = comparison.candidate.pass_rate
     if candidate_pass_rate is None:
         reasons.append("Candidate has no evaluation results yet.")
-    elif candidate_pass_rate < minimum_pass_rate:
+
+    paired_regressions = len(paired["regressed"])
+    comparable_count = (
+        len(paired["regressed"])
+        + len(paired["improved"])
+        + len(paired["unchanged"])
+    )
+
+    paired_score_deltas = [
+        item["candidate_score"] - item["baseline_score"]
+        for bucket in ("regressed", "improved", "unchanged")
+        for item in paired[bucket]
+        if item["candidate_score"] is not None and item["baseline_score"] is not None
+    ]
+    paired_average_score_delta = (
+        (
+            sum(paired_score_deltas, Decimal("0.0000"))
+            / Decimal(len(paired_score_deltas))
+        ).quantize(Decimal("0.0001"))
+        if paired_score_deltas
+        else None
+    )
+
+    if comparable_count == 0:
+        reasons.append(
+            "No behavioral test cases have evaluation evidence for both baseline and candidate."
+        )
+
+    if paired["not_comparable"]:
+        reasons.append(
+            f"{len(paired['not_comparable'])} test-case evaluations are missing "
+            "baseline or candidate evidence."
+        )
+
+    pass_rate_blocked = False
+    if (
+        candidate_pass_rate is not None
+        and comparable_count > 0
+        and candidate_pass_rate < minimum_pass_rate
+    ):
+        pass_rate_blocked = True
         reasons.append(
             f"Candidate pass rate {candidate_pass_rate} is below required {minimum_pass_rate}."
         )
 
-    paired_regressions = len(paired["regressed"])
-    if paired_regressions > maximum_regressions:
+    regression_blocked = paired_regressions > maximum_regressions
+    if regression_blocked:
         reasons.append(
             f"Candidate introduced {paired_regressions} paired regressions; maximum allowed is "
             f"{maximum_regressions}."
         )
-    elif comparison.regression_count_delta > maximum_regressions:
-        reasons.append(
-            "Candidate introduced "
-            f"{comparison.regression_count_delta} net failing evaluations; maximum allowed is "
-            f"{maximum_regressions}."
-        )
 
-    if comparison.score_delta is None:
-        reasons.append("Score delta is unavailable because one side has no average score.")
-    elif comparison.score_delta < -allowed_score_drop:
+    score_drop_blocked = False
+    if paired_average_score_delta is None:
+        reasons.append("Paired score delta is unavailable.")
+    elif paired_average_score_delta < -allowed_score_drop:
+        score_drop_blocked = True
         reasons.append(
-            f"Candidate average score changed by {comparison.score_delta}, beyond allowed drop "
+            "Candidate paired average score changed by "
+            f"{paired_average_score_delta}, beyond allowed drop "
             f"{allowed_score_drop}."
         )
+
+    has_missing_evidence = comparable_count == 0 or bool(paired["not_comparable"])
+    has_blocker = regression_blocked or pass_rate_blocked or score_drop_blocked
 
     if not reasons:
         decision = "PASS"
         summary = "Candidate satisfies the configured release criteria."
-    elif candidate_pass_rate is None or paired["not_comparable"] and not paired["regressed"]:
+    elif has_missing_evidence and not has_blocker:
         decision = "REVIEW"
         summary = "AgentGuard does not have enough paired evidence for an automatic ship decision."
-    elif (
-        paired_regressions > maximum_regressions
-        or comparison.regression_count_delta > maximum_regressions
-    ):
+    elif has_blocker:
         decision = "BLOCK"
         summary = "Candidate should not ship under the current release criteria."
     else:

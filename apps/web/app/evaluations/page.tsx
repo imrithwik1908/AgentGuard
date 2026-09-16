@@ -12,6 +12,34 @@ import {
 
 const CATEGORIES = ["Answer Quality", "Retrieval", "Agent Behavior", "Operational"] as const;
 
+function scoreNumber(value: string | number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  const numeric = typeof value === "number" ? value : Number(value);
+  return Number.isNaN(numeric) ? null : Math.max(0, Math.min(1, numeric));
+}
+
+function resultCopy(evaluationName: string, passed: boolean): string {
+  const info = evaluatorInfo(evaluationName);
+  if (info.category === "Answer Quality") {
+    return passed
+      ? "The answer met this test case expectation."
+      : "The answer missed something this test case required.";
+  }
+  if (info.category === "Retrieval") {
+    return passed
+      ? "The app retrieved acceptable supporting evidence."
+      : "The retrieved evidence may be weak, missing, or noisy.";
+  }
+  if (info.category === "Agent Behavior") {
+    return passed
+      ? "The agent followed the expected behavior path."
+      : "The agent behavior differed from the expected path.";
+  }
+  return passed
+    ? "The run is operationally usable for investigation."
+    : "The run has a reliability or instrumentation issue.";
+}
+
 export default async function EvaluationsPage() {
   let evaluations;
   let projects;
@@ -121,15 +149,26 @@ export default async function EvaluationsPage() {
         </div>
 
         {evaluations.items.length > 0 ? (
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-panel">
-            <div className="divide-y divide-slate-100">
+          <div className="grid gap-3">
               {evaluations.items.map((evaluation) => {
                 const info = evaluatorInfo(evaluation.evaluator_name);
                 const project = projectById.get(evaluation.project_id);
                 const version = versionById.get(evaluation.application_version_id);
                 const trace = traceById.get(evaluation.trace_id);
+                const score = scoreNumber(evaluation.score);
                 return (
-                  <div key={evaluation.id} className="grid gap-3 p-4 lg:grid-cols-[1fr_auto]">
+                  <div
+                    key={evaluation.id}
+                    className={`overflow-hidden rounded-2xl border bg-white shadow-panel ${
+                      evaluation.passed ? "border-emerald-200" : "border-red-200"
+                    }`}
+                  >
+                    <div
+                      className={`h-1 ${
+                        evaluation.passed ? "bg-emerald-500" : "bg-red-500"
+                      }`}
+                    />
+                    <div className="grid gap-4 p-4 lg:grid-cols-[1fr_auto]">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <EvaluationStatusBadge status={evaluation.status} />
@@ -140,10 +179,29 @@ export default async function EvaluationsPage() {
                       <h3 className="mt-2 text-base font-semibold text-ink-950">
                         {evaluation.label ?? info.name}
                       </h3>
-                      <p className="mt-1 text-sm text-slate-600">
-                        {project?.name ?? "Project"} · {version?.version ?? "Version"} · Score{" "}
-                        {formatScore(evaluation.score)}
+                      <p className="mt-1 text-sm leading-6 text-slate-700">
+                        {resultCopy(evaluation.evaluator_name, evaluation.passed)}
                       </p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {project?.name ?? "Project"} · {version?.version ?? "Version"}
+                      </p>
+                      <div className="mt-3 max-w-xl">
+                        <div className="flex items-center justify-between text-xs text-slate-500">
+                          <span>Score</span>
+                          <span>
+                            {formatScore(evaluation.score)}
+                            {evaluation.threshold ? ` / threshold ${formatScore(evaluation.threshold)}` : ""}
+                          </span>
+                        </div>
+                        <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className={`h-full rounded-full ${
+                              evaluation.passed ? "bg-emerald-500" : "bg-red-500"
+                            }`}
+                            style={{ width: `${Math.round((score ?? 0) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
                       <details className="mt-2 text-xs text-slate-500">
                         <summary className="cursor-pointer">Advanced evaluator details</summary>
                         <div className="mt-1 font-mono">{evaluation.evaluator_name}</div>
@@ -161,9 +219,9 @@ export default async function EvaluationsPage() {
                       </Link>
                     </div>
                   </div>
+                  </div>
                 );
               })}
-            </div>
           </div>
         ) : (
           <div className="surface rounded-2xl p-5 text-sm text-slate-600">

@@ -14,10 +14,12 @@ from agentguard_api.models.enums import RunStatus, SpanType
 from agentguard_api.schemas.dataset import DatasetCreate
 from agentguard_api.schemas.trace import SpanIngest, TraceIngest
 from agentguard_api.services.datasets import create_dataset, run_dataset_case
+from agentguard_api.services.errors import NotFoundError
 from agentguard_api.services.evaluations import (
     create_status_evaluation,
     create_trace_health_evaluations,
 )
+from agentguard_api.services.security import AuthContext, get_auth_context
 from agentguard_api.services.trace_ingestion import ingest_trace
 
 router = APIRouter(prefix="/demo", tags=["demo"])
@@ -36,8 +38,12 @@ class DemoSeedResult(BaseModel):
 async def seed_demo(
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> DemoSeedResult:
-    project = await _ensure_project(session)
+    if not settings.demo_seed_enabled:
+        raise NotFoundError("demo seed endpoint is disabled")
+
+    project = await _ensure_project(session, auth.workspace_id)
     baseline = await _ensure_version(session, project, "v1", "Stable baseline")
     candidate = await _ensure_version(session, project, "v2", "Regression candidate")
     project_id = project.id
@@ -55,6 +61,7 @@ async def seed_demo(
         "demo-success-v1-nested",
         RunStatus.OK,
         "AgentGuard captures traces for LLM, RAG, and agentic applications.",
+        workspace_id=auth.workspace_id,
     )
     failed_trace = await _ensure_trace(
         session,
@@ -64,15 +71,16 @@ async def seed_demo(
         "demo-failure-v2-nested",
         RunStatus.ERROR,
         None,
+        workspace_id=auth.workspace_id,
     )
     success_trace_id = success_trace.id
     failed_trace_id = failed_trace.id
-    await _ensure_status_eval(session, success_trace_id)
-    await _ensure_status_eval(session, failed_trace_id)
-    await _ensure_health_eval(session, success_trace_id)
-    await _ensure_health_eval(session, failed_trace_id)
+    await _ensure_status_eval(session, success_trace_id, workspace_id=auth.workspace_id)
+    await _ensure_status_eval(session, failed_trace_id, workspace_id=auth.workspace_id)
+    await _ensure_health_eval(session, success_trace_id, workspace_id=auth.workspace_id)
+    await _ensure_health_eval(session, failed_trace_id, workspace_id=auth.workspace_id)
 
-    dataset = await _ensure_dataset(session, project_id)
+    dataset = await _ensure_dataset(session, project_id, workspace_id=auth.workspace_id)
     dataset_id = dataset.id
     first_case_id = dataset.cases[0].id if dataset.cases else None
     if first_case_id is not None:
@@ -82,6 +90,7 @@ async def seed_demo(
             application_version_id=baseline_id,
             evaluator_name="builtin.answer_contains",
             settings=settings,
+            workspace_id=auth.workspace_id,
         )
 
     return DemoSeedResult(
@@ -94,14 +103,24 @@ async def seed_demo(
     )
 
 
-async def _ensure_project(session: AsyncSession) -> Project:
-    project = await session.scalar(select(Project).where(Project.slug == "agentguard-demo"))
+async def _ensure_project(session: AsyncSession, workspace_id) -> Project:
+    slug = "agentguard-demo"
+    if workspace_id is not None:
+        slug = f"agentguard-demo-{str(workspace_id)[:8]}"
+
+    project = await session.scalar(
+        select(Project).where(
+            Project.slug == slug,
+            Project.workspace_id == workspace_id,
+        )
+    )
     if project:
         return project
     project = Project(
         name="AgentGuard Demo",
-        slug="agentguard-demo",
+        slug=slug,
         description="Seeded public demo data for exploring AgentGuard.",
+        workspace_id=workspace_id,
     )
     session.add(project)
     await session.commit()
@@ -138,11 +157,19 @@ async def _ensure_trace(
     external_trace_id: str,
     status: RunStatus,
     answer: str | None,
+    *,
+    workspace_id,
 ):
     from agentguard_api.models import Trace
 
     existing = await session.scalar(
-        select(Trace).where(Trace.external_trace_id == external_trace_id)
+        select(Trace)
+        .join(Project)
+        .where(
+            Trace.external_trace_id == external_trace_id,
+            Trace.project_id == Project.id,
+            Project.workspace_id == workspace_id,
+        )
     )
     if existing:
         return existing
@@ -224,25 +251,26 @@ async def _ensure_trace(
             ],
         ),
         settings,
+        workspace_id=workspace_id,
     )
     return trace
 
 
-async def _ensure_status_eval(session: AsyncSession, trace_id) -> None:
+async def _ensure_status_eval(session: AsyncSession, trace_id, *, workspace_id) -> None:
     try:
-        await create_status_evaluation(session, trace_id)
+        await create_status_evaluation(session, trace_id, workspace_id=workspace_id)
     except Exception:
         await session.rollback()
 
 
-async def _ensure_health_eval(session: AsyncSession, trace_id) -> None:
+async def _ensure_health_eval(session: AsyncSession, trace_id, *, workspace_id) -> None:
     try:
-        await create_trace_health_evaluations(session, trace_id)
+        await create_trace_health_evaluations(session, trace_id, workspace_id=workspace_id)
     except Exception:
         await session.rollback()
 
 
-async def _ensure_dataset(session: AsyncSession, project_id):
+async def _ensure_dataset(session: AsyncSession, project_id, *, workspace_id):
     from agentguard_api.models import Dataset
 
     existing = await session.scalar(
@@ -267,4 +295,5 @@ async def _ensure_dataset(session: AsyncSession, project_id):
                 }
             ],
         ),
+        workspace_id=workspace_id,
     )

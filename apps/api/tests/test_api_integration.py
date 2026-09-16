@@ -203,9 +203,9 @@ async def test_trace_ingestion_api_checkpoint_behaviors(api_client):
     )
     assert release_response.status_code == 200
     release = release_response.json()
-    assert release["decision"] == "BLOCK"
+    assert release["decision"] == "REVIEW"
     assert release["comparison"]["regression_count_delta"] == 1
-    assert release["reasons"]
+    assert any("No behavioral test cases" in reason for reason in release["reasons"])
 
     ci_response = await api_client.get(
         "/api/v1/ci/release-gate",
@@ -290,6 +290,23 @@ async def test_trace_ingestion_api_checkpoint_behaviors(api_client):
     assert keyword_run_response.json()["evaluation"]["evaluator_version"] == "1.0.0"
     assert keyword_run_response.json()["evaluation"]["method"] == "DETERMINISTIC_BEHAVIORAL"
 
+    candidate_small_delta_response = await api_client.post(
+        "/api/v1/evaluations",
+        json={
+            "trace_id": failed_trace["id"],
+            "dataset_id": dataset["id"],
+            "dataset_case_id": passing_case["id"],
+            "evaluator_name": "builtin.keyword_coverage",
+            "score": "0.9600",
+            "threshold": "0.8000",
+            "passed": True,
+            "label": "Candidate retained keyword coverage",
+            "explanation": "Synthetic tiny score movement for tolerance testing.",
+            "metadata": {"source": "test"},
+        },
+    )
+    assert candidate_small_delta_response.status_code == 201
+
     candidate_case_evaluation_response = await api_client.post(
         "/api/v1/evaluations",
         json={
@@ -318,6 +335,25 @@ async def test_trace_ingestion_api_checkpoint_behaviors(api_client):
     paired = paired_response.json()
     assert len(paired["regressed"]) >= 1
     assert paired["regressed"][0]["classification"] == "REGRESSED"
+    assert any(
+        item["evaluator_name"] == "builtin.keyword_coverage"
+        for item in paired["unchanged"]
+    )
+
+    paired_release_response = await api_client.get(
+        "/api/v1/evaluations/release-decision",
+        params={
+            "baseline_version_id": stored["application_version_id"],
+            "candidate_version_id": failed_trace["application_version_id"],
+            "minimum_pass_rate": "0.8000",
+            "maximum_regressions": 0,
+            "allowed_score_drop": "0.0000",
+        },
+    )
+    assert paired_release_response.status_code == 200
+    paired_release = paired_release_response.json()
+    assert paired_release["decision"] == "BLOCK"
+    assert any("paired regressions" in reason for reason in paired_release["reasons"])
 
     job_response = await api_client.post(
         "/api/v1/evaluations/jobs",
@@ -332,6 +368,7 @@ async def test_trace_ingestion_api_checkpoint_behaviors(api_client):
     job = job_response.json()
     assert job["status"] in {"QUEUED", "RUNNING", "COMPLETED", "PARTIAL"}
     assert job["total_cases"] == len(dataset["cases"])
+    assert job["queue_job_id"] is None
 
     job_read_response = await api_client.get(f"/api/v1/evaluations/jobs/{job['id']}")
     assert job_read_response.status_code == 200

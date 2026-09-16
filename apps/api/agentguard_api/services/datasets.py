@@ -448,9 +448,11 @@ async def run_dataset_case(
             ),
             score=score,
             threshold=(
-                Decimal("1.0000")
-                if evaluator_name != "builtin.keyword_coverage"
+                Decimal("0.8000")
+                if evaluator_name == "builtin.llm_judge.answer_quality"
                 else Decimal("0.8000")
+                if evaluator_name == "builtin.keyword_coverage"
+                else Decimal("1.0000")
             ),
             status=EvaluationStatus.PASS if passed else EvaluationStatus.FAIL,
             passed=passed,

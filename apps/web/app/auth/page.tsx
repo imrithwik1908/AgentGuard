@@ -157,9 +157,9 @@ export default async function AuthPage({
           )}
 
           <div className="mt-6 rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4 text-xs leading-5 text-cyan-950">
-            Later we can add a device-flow style SDK command that opens this page, waits for login,
-            and returns a project-scoped API key. For now, login here first, then create/copy an API
-            key from Setup for your IDE or application runtime.
+            Current flow: sign in here, open Setup, create an SDK API key, and copy it into your
+            IDE or application runtime. Coming later: a device-flow SDK command that opens the
+            browser, waits for login, and returns a scoped key automatically.
           </div>
         </div>
       </section>

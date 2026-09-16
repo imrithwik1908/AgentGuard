@@ -27,6 +27,30 @@ function SpanTypeBadge({ type }: { type: string }) {
   );
 }
 
+function spanTypeMeaning(type: string): string {
+  if (type === "LLM") return "Model call";
+  if (type === "RETRIEVER") return "Retrieved context";
+  if (type === "TOOL") return "Tool/action";
+  if (type === "AGENT") return "Agent workflow";
+  if (type === "EMBEDDING") return "Embedding step";
+  if (type === "RERANKER") return "Ranking step";
+  if (type === "CHAIN") return "Application chain";
+  return "Custom operation";
+}
+
+function spanStatusMeaning(span: Span): string {
+  if (span.status === "ERROR") {
+    return "This step captured an error. Open the error evidence below to see what failed.";
+  }
+  if (span.output !== null && span.output !== undefined) {
+    return "This step completed and recorded output evidence.";
+  }
+  if (span.input !== null && span.input !== undefined) {
+    return "This step completed and recorded input evidence.";
+  }
+  return "This step completed, but it did not record detailed input or output payloads.";
+}
+
 export function TraceExplorer({
   trace,
   project,
@@ -181,8 +205,48 @@ export function TraceExplorer({
 }
 
 function SpanDetails({ span, parent }: { span: Span; parent: Span | null }) {
+  const hasInput = span.input !== null && span.input !== undefined;
+  const hasOutput = span.output !== null && span.output !== undefined;
+  const hasMetadata = Object.keys(span.metadata ?? {}).length > 0 || Object.keys(span.attributes ?? {}).length > 0;
+
   return (
     <div className="space-y-5 p-4">
+      <section
+        className={clsx(
+          "rounded-2xl border p-4",
+          span.status === "ERROR"
+            ? "border-red-200 bg-red-50 text-red-950"
+            : "border-emerald-200 bg-emerald-50 text-emerald-950"
+        )}
+      >
+        <div className="text-xs font-semibold uppercase tracking-[0.18em] opacity-70">
+          Selected step
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className="text-lg font-semibold">{span.name}</span>
+          <SpanTypeBadge type={span.type} />
+        </div>
+        <p className="mt-2 text-sm leading-6 opacity-85">{spanStatusMeaning(span)}</p>
+        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+          <div className="rounded-xl bg-white/70 p-3">
+            <div className="font-semibold">{spanTypeMeaning(span.type)}</div>
+            <div className="mt-1 opacity-70">What kind of work this step did.</div>
+          </div>
+          <div className="rounded-xl bg-white/70 p-3">
+            <div className="font-semibold">{formatDuration(span.duration_ms)}</div>
+            <div className="mt-1 opacity-70">Time spent in this step.</div>
+          </div>
+          <div className="rounded-xl bg-white/70 p-3">
+            <div className="font-semibold">
+              {[hasInput && "input", hasOutput && "output", hasMetadata && "metadata"]
+                .filter(Boolean)
+                .join(" + ") || "timing only"}
+            </div>
+            <div className="mt-1 opacity-70">Evidence captured by the SDK.</div>
+          </div>
+        </div>
+      </section>
+
       <dl className="grid grid-cols-2 gap-4">
         <Field label="Name" value={span.name} />
         <Field label="Status" value={<StatusBadge status={span.status} />} />
@@ -205,11 +269,11 @@ function SpanDetails({ span, parent }: { span: Span; parent: Span | null }) {
             <div className="mt-1 text-red-800">{String(span.error.message ?? "No message recorded")}</div>
           </div>
         ) : null}
-        <JsonViewer label="input" value={span.input} />
+        <JsonViewer label="input" value={span.input} defaultOpen={span.status === "ERROR"} />
         <JsonViewer label="output" value={span.output} />
         <JsonViewer label="metadata" value={span.metadata} />
         <JsonViewer label="attributes" value={span.attributes} />
-        {span.error ? <JsonViewer label="error" value={span.error} /> : null}
+        {span.error ? <JsonViewer label="error" value={span.error} defaultOpen /> : null}
       </div>
 
       <div className="rounded bg-slate-50 p-3">

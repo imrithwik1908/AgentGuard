@@ -8,7 +8,15 @@ function typeLabel(value: JsonValue): string {
   return typeof value;
 }
 
-export function JsonViewer({ value, label = "value" }: { value: JsonValue | null; label?: string }) {
+export function JsonViewer({
+  value,
+  label = "value",
+  defaultOpen = false
+}: {
+  value: JsonValue | null;
+  label?: string;
+  defaultOpen?: boolean;
+}) {
   if (value === null || value === undefined) {
     return <div className="rounded bg-slate-50 px-3 py-2 text-sm text-slate-500">null</div>;
   }
@@ -18,7 +26,7 @@ export function JsonViewer({ value, label = "value" }: { value: JsonValue | null
   }
 
   return (
-    <details open className="rounded border border-slate-200 bg-slate-50">
+    <details open={defaultOpen} className="rounded-2xl border border-slate-200 bg-slate-50">
       <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-slate-600">
         {label} · {typeLabel(value)}
       </summary>
@@ -28,4 +36,3 @@ export function JsonViewer({ value, label = "value" }: { value: JsonValue | null
     </details>
   );
 }
-

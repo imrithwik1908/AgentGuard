@@ -263,6 +263,14 @@ async def create_api_key(session: AsyncSession, payload: ApiKeyCreate) -> tuple[
     return raw_key, record
 
 
+async def list_api_keys(session: AsyncSession, workspace_id: UUID | None = None) -> list[ApiKey]:
+    statement = select(ApiKey).order_by(ApiKey.created_at.desc())
+    if workspace_id is not None:
+        statement = statement.where(ApiKey.workspace_id == workspace_id)
+    result = await session.execute(statement)
+    return list(result.scalars().all())
+
+
 async def authenticate_api_key(session: AsyncSession, raw_key: str) -> AuthContext:
     key_hash = hash_api_key(raw_key)
     result = await session.execute(

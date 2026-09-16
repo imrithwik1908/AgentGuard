@@ -31,6 +31,7 @@ from agentguard_api.services.security import (
     create_user,
     create_workspace,
     get_auth_context,
+    list_api_keys,
     list_provider_integrations,
     list_redaction_policies,
     list_workspaces,
@@ -114,6 +115,17 @@ async def create_api_key_endpoint(
     assert_workspace_access(auth, payload.workspace_id)
     raw_key, record = await create_api_key(session, payload)
     return ApiKeyCreateResponse(api_key=raw_key, record=ApiKeyRead.model_validate(record))
+
+
+@router.get("/api-keys", response_model=list[ApiKeyRead])
+async def read_api_keys(
+    workspace_id: UUID | None = None,
+    session: AsyncSession = Depends(get_session),
+    auth: AuthContext = Depends(get_auth_context),
+):
+    if auth.workspace_id is not None:
+        workspace_id = auth.workspace_id
+    return await list_api_keys(session, workspace_id)
 
 
 @router.post("/providers", response_model=ProviderIntegrationRead, status_code=201)

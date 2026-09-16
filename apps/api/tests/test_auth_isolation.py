@@ -272,6 +272,26 @@ async def test_auth_lifecycle_and_cross_tenant_api_isolation(auth_client):
         json={"workspace_id": user_b["workspace"]["id"], "name": "sdk"},
     )
     assert key_b_response.status_code == 201
+    key_a_prefix = key_a_response.json()["record"]["prefix"]
+    key_b_prefix = key_b_response.json()["record"]["prefix"]
+
+    keys_visible_to_a = await auth_client.get(
+        "/api/v1/security/api-keys",
+        headers=_bearer(user_a),
+    )
+    assert keys_visible_to_a.status_code == 200
+    prefixes_visible_to_a = {record["prefix"] for record in keys_visible_to_a.json()}
+    assert key_a_prefix in prefixes_visible_to_a
+    assert key_b_prefix not in prefixes_visible_to_a
+
+    keys_visible_to_b = await auth_client.get(
+        "/api/v1/security/api-keys",
+        headers=_bearer(user_b),
+    )
+    assert keys_visible_to_b.status_code == 200
+    prefixes_visible_to_b = {record["prefix"] for record in keys_visible_to_b.json()}
+    assert key_b_prefix in prefixes_visible_to_b
+    assert key_a_prefix not in prefixes_visible_to_b
 
     foreign_ingest = await auth_client.post(
         "/api/v1/traces",

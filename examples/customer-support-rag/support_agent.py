@@ -187,7 +187,13 @@ def call_openai_compatible_chat(
     return {"content": choice, "usage": usage, "raw": payload}
 
 
-def answer_question(config: Config, question: str, *, simulate: str | None = None) -> dict[str, Any]:
+def answer_question(
+    config: Config,
+    question: str,
+    *,
+    simulate: str | None = None,
+    dataset_case_id: str | None = None,
+) -> dict[str, Any]:
     corpus = load_json(HERE / "corpus.json")
     client = AgentGuard(
         base_url=config.agentguard_base_url,
@@ -195,14 +201,19 @@ def answer_question(config: Config, question: str, *, simulate: str | None = Non
         version=config.agentguard_version,
         api_key=config.agentguard_api_key,
     )
+    trace_input = {"question": question}
+    if dataset_case_id is not None:
+        trace_input["dataset_case_id"] = dataset_case_id
+
     with client.trace(
         "support-rag-answer",
-        input={"question": question},
+        input=trace_input,
         metadata={
             "app": "customer-support-rag",
             "retrieval_top_k": config.retrieval_top_k,
             "llm_provider": "openai-compatible" if not config.mock_provider else "mock",
             "llm_model": config.llm_model,
+            **({"dataset_case_id": dataset_case_id} if dataset_case_id else {}),
         },
     ) as trace:
         with trace.span(

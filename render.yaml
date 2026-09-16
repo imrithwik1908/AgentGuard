@@ -1,0 +1,63 @@
+services:
+  - type: keyvalue
+    name: agentguard-redis
+    plan: free
+    region: oregon
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
+
+  - type: web
+    name: agentguard-api
+    runtime: docker
+    rootDir: apps/api
+    plan: free
+    region: oregon
+    healthCheckPath: /healthz
+    envVars:
+      - key: AGENTGUARD_DATABASE_URL
+        fromDatabase:
+          name: agentguard-postgres
+          property: connectionString
+      - key: AGENTGUARD_REDIS_URL
+        fromService:
+          name: agentguard-redis
+          type: keyvalue
+          property: connectionString
+      - key: AGENTGUARD_ENVIRONMENT
+        value: production
+      - key: AGENTGUARD_AUTH_REQUIRED
+        value: "true"
+      - key: AGENTGUARD_EVALUATION_QUEUE_BACKEND
+        value: redis
+      - key: AGENTGUARD_EMBEDDED_WORKER_ENABLED
+        value: "true"
+      - key: AGENTGUARD_DEMO_SEED_ENABLED
+        value: "false"
+      - key: AGENTGUARD_MAX_TRACE_SPANS
+        value: "500"
+      - key: AGENTGUARD_MAX_INGESTION_BYTES
+        value: "1048576"
+      - key: AGENTGUARD_EVALUATION_JOB_TIMEOUT_SECONDS
+        value: "300"
+      - key: AGENTGUARD_EVALUATION_WORKER_CONCURRENCY
+        value: "2"
+      - key: AGENTGUARD_JUDGE_API_KEY
+        sync: false
+
+  - type: web
+    name: agentguard-web
+    runtime: docker
+    rootDir: apps/web
+    plan: free
+    region: oregon
+    envVars:
+      - key: AGENTGUARD_API_URL
+        value: https://agentguard-api.onrender.com
+
+databases:
+  - name: agentguard-postgres
+    databaseName: agentguard
+    user: agentguard
+    plan: free
+    region: oregon
+    postgresMajorVersion: "16"

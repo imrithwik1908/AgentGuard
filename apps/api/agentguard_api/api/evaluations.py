@@ -1,7 +1,7 @@
 from decimal import Decimal
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentguard_api.core.config import Settings, get_settings
@@ -19,8 +19,8 @@ from agentguard_api.schemas.evaluation import (
 )
 from agentguard_api.services.evaluation_jobs import (
     enqueue_evaluation_job,
+    enqueue_evaluation_job_for_processing,
     get_evaluation_job,
-    process_evaluation_job,
 )
 from agentguard_api.services.evaluations import (
     compare_versions,
@@ -37,22 +37,28 @@ from agentguard_api.services.security import AuthContext, get_auth_context
 router = APIRouter(prefix="/evaluations", tags=["evaluations"])
 
 
-@router.post("/jobs", response_model=EvaluationJobRead, status_code=202)
+@router.post(
+    "/jobs",
+    response_model=EvaluationJobRead,
+    status_code=202,
+)
 async def create_evaluation_job(
     payload: EvaluationJobCreate,
-    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session),
-    settings: Settings = Depends(get_settings),
     auth: AuthContext = Depends(get_auth_context),
+    settings: Settings = Depends(get_settings),
 ):
-    job = await enqueue_evaluation_job(session, payload, workspace_id=auth.workspace_id)
-    background_tasks.add_task(
-        process_evaluation_job,
-        job.id,
+    job = await enqueue_evaluation_job(
+        session,
+        payload,
+        workspace_id=auth.workspace_id,
+    )
+    return await enqueue_evaluation_job_for_processing(
+        session,
+        job,
         settings=settings,
         workspace_id=auth.workspace_id,
     )
-    return job
 
 
 @router.get("/jobs/{job_id}", response_model=EvaluationJobRead)

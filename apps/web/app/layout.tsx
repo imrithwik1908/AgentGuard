@@ -42,7 +42,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   <Link className="rounded-full px-3 py-2 text-slate-700 hover:bg-slate-100" href="/traces">
                     Runs
                   </Link>
-                  <Link className="rounded-full px-3 py-2 text-slate-700 hover:bg-slate-100" href="/projects">
+                  <Link className="rounded-full px-3 py-2 text-slate-700 hover:bg-slate-100" href="/settings">
                     Setup
                   </Link>
                   <Link className="rounded-full px-3 py-2 text-slate-700 hover:bg-slate-100" href="/docs">

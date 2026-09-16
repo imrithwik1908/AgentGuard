@@ -9,6 +9,28 @@ import { evaluatorInfo } from "@/lib/product-intelligence";
 
 import { createStatusEvaluationAction } from "../actions";
 
+function checkMeaning(evaluationName: string, passed: boolean): string {
+  const info = evaluatorInfo(evaluationName);
+  if (info.category === "Answer Quality") {
+    return passed
+      ? "The answer matched the expected behavior for this case."
+      : "The answer did not meet the expected behavior for this case.";
+  }
+  if (info.category === "Retrieval") {
+    return passed
+      ? "The retrieval evidence looks acceptable for this run."
+      : "The retrieval evidence suggests the app may have fetched weak or wrong context.";
+  }
+  if (info.category === "Agent Behavior") {
+    return passed
+      ? "The agent behavior matched the expected action pattern."
+      : "The agent may have selected the wrong action, tool, or workflow path.";
+  }
+  return passed
+    ? "The run produced usable operational evidence."
+    : "The run has an operational issue that can affect reliability or debugging.";
+}
+
 export default async function TraceDetailPage({
   params,
   searchParams
@@ -55,7 +77,9 @@ export default async function TraceDetailPage({
         </Link>{" "}
         / {trace.name}
       </div>
-      <section className="rounded border border-slate-200 bg-white p-4 shadow-panel">
+      <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-panel">
+        <div className="h-1 bg-gradient-to-r from-cyan-500 via-emerald-500 to-slate-900" />
+        <div className="p-5">
         <div className="text-xs font-medium uppercase tracking-wide text-cyan-700">Run investigation</div>
         <h1 className="mt-2 text-2xl font-semibold text-ink-950">{trace.name}</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
@@ -63,37 +87,47 @@ export default async function TraceDetailPage({
           checks recorded evidence, then open execution details only when you need internals.
         </p>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <div className="rounded-xl bg-slate-50 p-3">
+          <div className="rounded-2xl bg-slate-50 p-4">
             <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Run status</div>
             <div className="mt-2 text-sm font-semibold text-ink-950">{trace.status}</div>
+            <div className="mt-1 text-xs leading-5 text-slate-500">
+              Top-level outcome recorded by the SDK.
+            </div>
           </div>
-          <div className="rounded-xl bg-slate-50 p-3">
+          <div className="rounded-2xl bg-slate-50 p-4">
             <div className="text-xs font-medium uppercase tracking-wide text-slate-500">What failed</div>
             <div className="mt-2 text-sm font-semibold text-ink-950">
               {failedChecks[0]?.label ?? (trace.status === "ERROR" ? "Runtime failure" : "No failed check recorded")}
             </div>
+            <div className="mt-1 text-xs leading-5 text-slate-500">
+              First failing check, if AgentGuard has evaluation evidence.
+            </div>
           </div>
-          <div className="rounded-xl bg-slate-50 p-3">
+          <div className="rounded-2xl bg-slate-50 p-4">
             <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Likely area</div>
             <div className="mt-2 text-sm font-semibold text-ink-950">
               {likelyFailureArea ?? "No failure evidence yet"}
             </div>
+            <div className="mt-1 text-xs leading-5 text-slate-500">
+              Category, not a causal claim.
+            </div>
           </div>
+        </div>
         </div>
       </section>
 
-      <section className="rounded border border-slate-200 bg-white p-4 shadow-panel">
+      <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-panel">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="text-xs font-medium uppercase tracking-wide text-cyan-700">Checks</div>
-            <h2 className="mt-2 text-lg font-semibold text-ink-950">Run operational checks</h2>
+            <h2 className="mt-2 text-lg font-semibold text-ink-950">Checks for this run</h2>
             <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
-              AgentGuard checks whether the run completed, whether nested steps failed, whether
-              latency stayed inside budget, and whether the trace contains useful debugging evidence.
+              A check is a stored piece of evidence. It can measure answer behavior, retrieval,
+              agent actions, or operational reliability. Internal evaluator IDs stay tucked away.
             </p>
           </div>
           <form action={createHealthEvaluationForTrace}>
-            <button className="rounded bg-ink-900 px-4 py-2 text-sm font-medium text-white hover:bg-ink-800">
+            <button className="rounded-full bg-ink-900 px-4 py-2 text-sm font-medium text-white hover:bg-ink-800">
               Run operational checks
             </button>
           </form>
@@ -106,12 +140,25 @@ export default async function TraceDetailPage({
         {evaluations.items.length > 0 ? (
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {evaluations.items.map((evaluation) => (
-              <div key={evaluation.id} className="rounded border border-slate-200 bg-slate-50 p-3">
+              <div
+                key={evaluation.id}
+                className={`rounded-2xl border p-4 ${
+                  evaluation.passed
+                    ? "border-emerald-200 bg-emerald-50/70"
+                    : "border-red-200 bg-red-50/70"
+                }`}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      {evaluatorInfo(evaluation.evaluator_name).category}
+                    </div>
                     <div className="font-medium text-ink-950">
                       {evaluation.label ?? evaluatorInfo(evaluation.evaluator_name).name}
                     </div>
+                    <p className="mt-1 text-sm leading-6 text-slate-700">
+                      {checkMeaning(evaluation.evaluator_name, evaluation.passed)}
+                    </p>
                     <div className="mt-1 text-xs text-slate-500">{formatDateTime(evaluation.created_at)}</div>
                     <details className="mt-1 text-xs text-slate-500">
                       <summary className="cursor-pointer">Advanced evaluator details</summary>
@@ -121,11 +168,11 @@ export default async function TraceDetailPage({
                   <EvaluationStatusBadge status={evaluation.status} />
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                  <div>
+                  <div className="rounded-xl bg-white/70 p-3">
                     <div className="text-xs uppercase tracking-wide text-slate-500">Score</div>
                     <div className="mt-1 text-ink-950">{formatScore(evaluation.score)}</div>
                   </div>
-                  <div>
+                  <div className="rounded-xl bg-white/70 p-3">
                     <div className="text-xs uppercase tracking-wide text-slate-500">Threshold</div>
                     <div className="mt-1 text-ink-950">{formatScore(evaluation.threshold)}</div>
                   </div>

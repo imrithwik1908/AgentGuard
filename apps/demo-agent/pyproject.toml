@@ -4,8 +4,11 @@ version = "0.1.0"
 description = "Deterministic demo agent for AgentGuard"
 requires-python = ">=3.12"
 dependencies = [
-  "agentguard",
+  "agentguard-reliability",
 ]
+
+[tool.uv.sources]
+agentguard-reliability = { path = "../../packages/python-sdk", editable = true }
 
 [project.optional-dependencies]
 dev = [
@@ -18,6 +21,7 @@ include = ["demo_agent*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = [".", "../../packages/python-sdk"]
 
 [tool.ruff]
 line-length = 100

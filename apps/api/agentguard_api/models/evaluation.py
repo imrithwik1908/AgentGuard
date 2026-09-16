@@ -121,6 +121,7 @@ class EvaluationJob(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     request_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    queue_job_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
     project_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("projects.id", ondelete="CASCADE"),

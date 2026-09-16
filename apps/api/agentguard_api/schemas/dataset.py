@@ -17,8 +17,32 @@ class DatasetCaseCreate(BaseModel):
 
     @model_validator(mode="after")
     def require_expectation(self):
-        if self.expected_output is None and not self.expected_substring:
-            raise ValueError("expected_output or expected_substring is required")
+        has_answer_expectation = (
+            self.expected_output is not None
+            or bool(self.expected_substring)
+        )
+
+        has_behavior_expectation = any(
+            [
+                self.metadata.get("semantic_requirement"),
+                self.metadata.get("expected_document_ids"),
+                self.metadata.get("expected_tools"),
+                self.metadata.get("forbidden_tools"),
+            ]
+        )
+
+        if (
+            not has_answer_expectation
+            and not has_behavior_expectation
+        ):
+            raise ValueError(
+                
+                    "test case requires at least one "
+                    "answer, retrieval, or agent-behavior "
+                    "expectation"
+                
+            )
+
         return self
 
 
