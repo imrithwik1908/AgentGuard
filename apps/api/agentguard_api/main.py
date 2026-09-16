@@ -108,6 +108,20 @@ def create_app() -> FastAPI:
     async def healthz() -> dict[str, str]:
         return {"status": "ok"}
 
+    @app.get("/")
+    async def root() -> dict[str, object]:
+        return {
+            "name": "AgentGuard API",
+            "status": "ok",
+            "message": "AgentGuard backend is running. Use the web app for the product UI.",
+            "links": {
+                "web_app": "https://agentguard-web-wijr.onrender.com",
+                "health": "/healthz",
+                "api_docs": "/docs",
+                "openapi": "/openapi.json",
+            },
+        }
+
     app.include_router(projects_router, prefix="/api/v1")
     app.include_router(traces_router, prefix="/api/v1")
     app.include_router(evaluations_router, prefix="/api/v1")
