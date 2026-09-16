@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getSession } from "@/lib/session";
-import { loginAction, registerAction } from "./actions";
 
 function Field({
   label,
@@ -114,7 +113,7 @@ export default async function AuthPage({
           ) : null}
 
           {mode === "login" ? (
-            <form action={loginAction} className="space-y-4">
+            <form action="/auth/login" method="post" className="space-y-4">
               <div>
                 <h2 className="text-2xl font-semibold text-ink-950">Welcome back</h2>
                 <p className="mt-1 text-sm text-slate-600">
@@ -134,7 +133,7 @@ export default async function AuthPage({
               </button>
             </form>
           ) : (
-            <form action={registerAction} className="space-y-4">
+            <form action="/auth/register" method="post" className="space-y-4">
               <div>
                 <h2 className="text-2xl font-semibold text-ink-950">Create your workspace</h2>
                 <p className="mt-1 text-sm text-slate-600">
