@@ -156,12 +156,12 @@ export default function DocsPage() {
             body="The repo docs are organized as tutorials, how-to guides, reference, and explanation so users can either learn the product or quickly look up exact details."
           >
             <div className="grid gap-3 md:grid-cols-2">
-              <DocLink title="Getting Started" href="https://github.com/csairithwikreddy/AgentGuard/tree/main/docs/getting-started.md" />
-              <DocLink title="Core Concepts" href="https://github.com/csairithwikreddy/AgentGuard/tree/main/docs/concepts.md" />
-              <DocLink title="Python SDK" href="https://github.com/csairithwikreddy/AgentGuard/tree/main/docs/sdk.md" />
-              <DocLink title="API Reference" href="https://github.com/csairithwikreddy/AgentGuard/tree/main/docs/api-reference.md" />
-              <DocLink title="Configuration" href="https://github.com/csairithwikreddy/AgentGuard/tree/main/docs/configuration.md" />
-              <DocLink title="Troubleshooting" href="https://github.com/csairithwikreddy/AgentGuard/tree/main/docs/troubleshooting.md" />
+              <DocLink title="Getting Started" href="https://github.com/imrithwik1908/AgentGuard/tree/main/docs/getting-started.md" />
+              <DocLink title="Core Concepts" href="https://github.com/imrithwik1908/AgentGuard/tree/main/docs/concepts.md" />
+              <DocLink title="Python SDK" href="https://github.com/imrithwik1908/AgentGuard/tree/main/docs/sdk.md" />
+              <DocLink title="API Reference" href="https://github.com/imrithwik1908/AgentGuard/tree/main/docs/api-reference.md" />
+              <DocLink title="Configuration" href="https://github.com/imrithwik1908/AgentGuard/tree/main/docs/configuration.md" />
+              <DocLink title="Troubleshooting" href="https://github.com/imrithwik1908/AgentGuard/tree/main/docs/troubleshooting.md" />
             </div>
           </DocSection>
 

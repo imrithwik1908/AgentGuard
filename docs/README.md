@@ -82,6 +82,6 @@ AgentGuard should never present planned capabilities as if they are already acti
 
 When the repository is pushed publicly, PyPI will point to:
 
-- Homepage: `https://github.com/csairithwikreddy/AgentGuard`
-- Documentation: `https://github.com/csairithwikreddy/AgentGuard/tree/main/docs`
-- Issues: `https://github.com/csairithwikreddy/AgentGuard/issues`
+- Homepage: `https://github.com/imrithwik1908/AgentGuard`
+- Documentation: `https://github.com/imrithwik1908/AgentGuard/tree/main/docs`
+- Issues: `https://github.com/imrithwik1908/AgentGuard/issues`
