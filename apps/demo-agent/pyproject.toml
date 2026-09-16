@@ -1,0 +1,27 @@
+[project]
+name = "agentguard-demo-agent"
+version = "0.1.0"
+description = "Deterministic demo agent for AgentGuard"
+requires-python = ">=3.12"
+dependencies = [
+  "agentguard",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.2",
+  "ruff>=0.6.3",
+]
+
+[tool.setuptools.packages.find]
+include = ["demo_agent*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

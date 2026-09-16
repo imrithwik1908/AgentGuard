@@ -1,0 +1,62 @@
+[
+  {
+    "id": "refund-standard",
+    "title": "Standard Refund Policy",
+    "body": "Most unopened products can be returned within 30 days of delivery for a full refund. Opened electronics can be returned within 14 days if all accessories are included."
+  },
+  {
+    "id": "refund-holiday",
+    "title": "Holiday Return Extension",
+    "body": "Items purchased between November 1 and December 24 can be returned until January 31. The extension does not apply to final-sale items or activated subscriptions."
+  },
+  {
+    "id": "refund-laptop-opened",
+    "title": "Opened Laptop Returns",
+    "body": "Opened laptops can be returned within 14 days of delivery. After 14 days, support may offer repair service under warranty but should not promise a refund."
+  },
+  {
+    "id": "shipping-standard",
+    "title": "Standard Shipping",
+    "body": "Standard shipping usually arrives in 5 to 7 business days after fulfillment. Weekends and holidays do not count as business days."
+  },
+  {
+    "id": "shipping-expedited",
+    "title": "Expedited Shipping",
+    "body": "Expedited shipping usually arrives in 2 business days after fulfillment. Weather, carrier disruptions, or incorrect addresses can delay delivery."
+  },
+  {
+    "id": "warranty-basic",
+    "title": "Warranty Basics",
+    "body": "Most electronics include a one-year limited warranty covering manufacturing defects. Accidental damage and misuse are not covered unless the customer purchased protection."
+  },
+  {
+    "id": "price-match",
+    "title": "Price Match Policy",
+    "body": "A price match can be requested within 7 days of purchase when the lower price is from an approved retailer and the item is identical and in stock."
+  },
+  {
+    "id": "order-lookup",
+    "title": "Order Lookup Tool Policy",
+    "body": "When a customer asks about order status and provides an order ID, use the order_status tool before answering. Do not invent shipping status."
+  },
+  {
+    "id": "subscription-cancel",
+    "title": "Subscription Cancellation",
+    "body": "Monthly subscriptions can be cancelled before the next billing date. Already billed periods are not refunded unless required by law."
+  },
+  {
+    "id": "final-sale",
+    "title": "Final Sale Items",
+    "body": "Final-sale clearance items are not eligible for return, refund, or exchange except when the item arrives defective."
+  },
+  {
+    "id": "gift-return",
+    "title": "Gift Returns",
+    "body": "Gift recipients can return eligible items for store credit. Refunds to the original payment method require the purchaser's account."
+  },
+  {
+    "id": "distractor-laptop-sale",
+    "title": "Laptop Sale Announcement",
+    "body": "Laptop accessories are discounted during the spring sale. This document is marketing content and does not change refund eligibility."
+  }
+]

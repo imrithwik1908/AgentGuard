@@ -1,0 +1,332 @@
+{
+  "alice": {
+    "email": "alice-f04a943a@example.com",
+    "password": "AliceDemo123",
+    "workspace_slug": "alice-lab-f04a943a"
+  },
+  "project": {
+    "id": "10cbff21-32a0-4304-9a74-8f43d65dbb87",
+    "workspace_id": "26bd9691-6f83-4bfc-aa7c-7a869d1ce2fe",
+    "name": "Alice Support Agent",
+    "slug": "alice-support-agent-f04a943a",
+    "description": "Alice's realistic support-policy RAG assistant.",
+    "created_at": "2026-09-16T01:43:11.963725Z",
+    "updated_at": "2026-09-16T01:43:11.963726Z"
+  },
+  "versions": {
+    "baseline-balanced": {
+      "id": "15303881-f3da-4acd-a5e4-67889ff3f534",
+      "project_id": "10cbff21-32a0-4304-9a74-8f43d65dbb87",
+      "name": "Baseline balanced retrieval",
+      "version": "baseline-balanced",
+      "git_commit": null,
+      "model_config": {
+        "model": "support-mock-2026",
+        "provider": "mock"
+      },
+      "prompt_config": {
+        "answer_style": "careful"
+      },
+      "retrieval_config": {
+        "bias": "policy",
+        "top_k": 3
+      },
+      "agent_config": {},
+      "metadata": {},
+      "created_at": "2026-09-16T01:43:11.968854Z"
+    },
+    "candidate-broader-context": {
+      "id": "616f9c72-3400-4082-904a-21653b2854da",
+      "project_id": "10cbff21-32a0-4304-9a74-8f43d65dbb87",
+      "name": "Candidate broader context",
+      "version": "candidate-broader-context",
+      "git_commit": null,
+      "model_config": {
+        "model": "support-mock-2026",
+        "provider": "mock"
+      },
+      "prompt_config": {
+        "answer_style": "direct"
+      },
+      "retrieval_config": {
+        "bias": "recency",
+        "top_k": 6
+      },
+      "agent_config": {},
+      "metadata": {},
+      "created_at": "2026-09-16T01:43:11.972843Z"
+    }
+  },
+  "dataset": {
+    "id": "34855e4f-02f5-4701-b802-7aec0a966eae",
+    "case_count": 10
+  },
+  "rows": [
+    {
+      "version": "baseline-balanced",
+      "case": "opened laptop after a month",
+      "answer_passed": true,
+      "retrieval_passed": true,
+      "retrieved": [
+        "returns-laptop-exception",
+        "returns-standard",
+        "shipping-expedited"
+      ]
+    },
+    {
+      "version": "baseline-balanced",
+      "case": "holiday return timing",
+      "answer_passed": true,
+      "retrieval_passed": true,
+      "retrieved": [
+        "holiday-extension",
+        "warranty",
+        "returns-laptop-exception"
+      ]
+    },
+    {
+      "version": "baseline-balanced",
+      "case": "final sale defective exception",
+      "answer_passed": true,
+      "retrieval_passed": true,
+      "retrieved": [
+        "final-sale",
+        "holiday-extension",
+        "marketing-laptop-sale"
+      ]
+    },
+    {
+      "version": "baseline-balanced",
+      "case": "weekend shipping wording",
+      "answer_passed": true,
+      "retrieval_passed": true,
+      "retrieved": [
+        "shipping-basic",
+        "returns-standard",
+        "shipping-expedited"
+      ]
+    },
+    {
+      "version": "baseline-balanced",
+      "case": "expedited weather delay",
+      "answer_passed": true,
+      "retrieval_passed": true,
+      "retrieved": [
+        "shipping-expedited",
+        "returns-standard",
+        "holiday-extension"
+      ]
+    },
+    {
+      "version": "baseline-balanced",
+      "case": "price match similar item",
+      "answer_passed": true,
+      "retrieval_passed": true,
+      "retrieved": [
+        "price-match",
+        "shipping-expedited",
+        "returns-standard"
+      ]
+    },
+    {
+      "version": "baseline-balanced",
+      "case": "warranty accidental damage",
+      "answer_passed": true,
+      "retrieval_passed": true,
+      "retrieved": [
+        "warranty",
+        "returns-standard",
+        "returns-laptop-exception"
+      ]
+    },
+    {
+      "version": "baseline-balanced",
+      "case": "holiday activated subscription",
+      "answer_passed": true,
+      "retrieval_passed": true,
+      "retrieved": [
+        "holiday-extension",
+        "returns-laptop-exception",
+        "marketing-laptop-sale"
+      ]
+    },
+    {
+      "version": "baseline-balanced",
+      "case": "unopened return window",
+      "answer_passed": true,
+      "retrieval_passed": true,
+      "retrieved": [
+        "returns-standard",
+        "returns-laptop-exception",
+        "marketing-laptop-sale"
+      ]
+    },
+    {
+      "version": "baseline-balanced",
+      "case": "laptop marketing distractor",
+      "answer_passed": true,
+      "retrieval_passed": true,
+      "retrieved": [
+        "marketing-laptop-sale",
+        "returns-laptop-exception",
+        "final-sale"
+      ]
+    },
+    {
+      "version": "candidate-broader-context",
+      "case": "opened laptop after a month",
+      "answer_passed": false,
+      "retrieval_passed": true,
+      "retrieved": [
+        "returns-laptop-exception",
+        "returns-standard",
+        "shipping-expedited",
+        "price-match",
+        "holiday-extension",
+        "marketing-laptop-sale"
+      ]
+    },
+    {
+      "version": "candidate-broader-context",
+      "case": "holiday return timing",
+      "answer_passed": true,
+      "retrieval_passed": true,
+      "retrieved": [
+        "holiday-extension",
+        "marketing-laptop-sale",
+        "warranty",
+        "returns-laptop-exception",
+        "final-sale",
+        "price-match"
+      ]
+    },
+    {
+      "version": "candidate-broader-context",
+      "case": "final sale defective exception",
+      "answer_passed": true,
+      "retrieval_passed": true,
+      "retrieved": [
+        "final-sale",
+        "holiday-extension",
+        "marketing-laptop-sale",
+        "returns-laptop-exception",
+        "price-match"
+      ]
+    },
+    {
+      "version": "candidate-broader-context",
+      "case": "weekend shipping wording",
+      "answer_passed": true,
+      "retrieval_passed": true,
+      "retrieved": [
+        "shipping-basic",
+        "marketing-laptop-sale",
+        "returns-standard",
+        "shipping-expedited",
+        "holiday-extension",
+        "price-match"
+      ]
+    },
+    {
+      "version": "candidate-broader-context",
+      "case": "expedited weather delay",
+      "answer_passed": true,
+      "retrieval_passed": true,
+      "retrieved": [
+        "shipping-expedited",
+        "holiday-extension",
+        "returns-standard",
+        "shipping-basic",
+        "price-match"
+      ]
+    },
+    {
+      "version": "candidate-broader-context",
+      "case": "price match similar item",
+      "answer_passed": true,
+      "retrieval_passed": true,
+      "retrieved": [
+        "price-match",
+        "holiday-extension",
+        "marketing-laptop-sale",
+        "shipping-expedited",
+        "returns-standard",
+        "returns-laptop-exception"
+      ]
+    },
+    {
+      "version": "candidate-broader-context",
+      "case": "warranty accidental damage",
+      "answer_passed": true,
+      "retrieval_passed": true,
+      "retrieved": [
+        "warranty",
+        "marketing-laptop-sale",
+        "returns-standard",
+        "returns-laptop-exception",
+        "final-sale",
+        "price-match"
+      ]
+    },
+    {
+      "version": "candidate-broader-context",
+      "case": "holiday activated subscription",
+      "answer_passed": true,
+      "retrieval_passed": true,
+      "retrieved": [
+        "holiday-extension",
+        "marketing-laptop-sale",
+        "returns-laptop-exception",
+        "final-sale",
+        "warranty",
+        "price-match"
+      ]
+    },
+    {
+      "version": "candidate-broader-context",
+      "case": "unopened return window",
+      "answer_passed": true,
+      "retrieval_passed": true,
+      "retrieved": [
+        "marketing-laptop-sale",
+        "returns-standard",
+        "returns-laptop-exception"
+      ]
+    },
+    {
+      "version": "candidate-broader-context",
+      "case": "laptop marketing distractor",
+      "answer_passed": false,
+      "retrieval_passed": true,
+      "retrieved": [
+        "marketing-laptop-sale",
+        "holiday-extension",
+        "returns-laptop-exception",
+        "final-sale",
+        "returns-standard",
+        "warranty"
+      ]
+    }
+  ],
+  "paired_counts": {
+    "regressed": 2,
+    "improved": 0,
+    "unchanged": 18,
+    "not_comparable": 0
+  },
+  "release": {
+    "decision": "BLOCK",
+    "summary": "Candidate should not ship under the current release criteria.",
+    "reasons": [
+      "2 paired test cases regressed.",
+      "Candidate introduced 2 paired regressions; maximum allowed is 0.",
+      "Candidate average score changed by -0.0650, beyond allowed drop 0.0000."
+    ]
+  },
+  "urls": {
+    "login": "http://localhost:3000/auth?mode=login",
+    "release": "http://localhost:3000/releases?baseline_version_id=15303881-f3da-4acd-a5e4-67889ff3f534&candidate_version_id=616f9c72-3400-4082-904a-21653b2854da",
+    "runs": "http://localhost:3000/traces",
+    "test_suites": "http://localhost:3000/datasets"
+  }
+}

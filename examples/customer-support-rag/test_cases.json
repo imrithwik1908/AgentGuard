@@ -1,0 +1,184 @@
+[
+  {
+    "name": "opened-laptop-after-45-days",
+    "question": "Can I return an opened laptop after 45 days?",
+    "expected_substring": "should not promise a refund",
+    "required_document": "refund-laptop-opened"
+  },
+  {
+    "name": "holiday-return-window",
+    "question": "I bought headphones on December 10. Is January 20 still inside the return window?",
+    "expected_substring": "January 31",
+    "required_document": "refund-holiday"
+  },
+  {
+    "name": "standard-unopened-return",
+    "question": "How long do I have to return an unopened monitor?",
+    "expected_substring": "30 days",
+    "required_document": "refund-standard"
+  },
+  {
+    "name": "opened-electronics-window",
+    "question": "My opened tablet arrived 10 days ago. Can support accept the return?",
+    "expected_substring": "14 days",
+    "required_document": "refund-standard"
+  },
+  {
+    "name": "final-sale-defective-edge-case",
+    "question": "A final-sale item arrived defective. Is there any exception?",
+    "expected_substring": "defective",
+    "required_document": "final-sale"
+  },
+  {
+    "name": "subscription-cancel-not-refund",
+    "question": "If I cancel a monthly subscription today, do I get this month refunded?",
+    "expected_substring": "not refunded",
+    "required_document": "subscription-cancel"
+  },
+  {
+    "name": "price-match-window",
+    "question": "Can I request a price match 12 days after purchase?",
+    "expected_substring": "within 7 days",
+    "required_document": "price-match"
+  },
+  {
+    "name": "gift-store-credit",
+    "question": "I received a gift. Can I return it without the purchaser's account?",
+    "expected_substring": "store credit",
+    "required_document": "gift-return"
+  },
+  {
+    "name": "standard-shipping-business-days",
+    "question": "Does standard shipping count weekends in its 5 to 7 day estimate?",
+    "expected_substring": "business days",
+    "required_document": "shipping-standard"
+  },
+  {
+    "name": "expedited-shipping-delay",
+    "question": "Expedited shipping was delayed by bad weather. Is that possible?",
+    "expected_substring": "weather",
+    "required_document": "shipping-expedited"
+  },
+  {
+    "name": "warranty-accidental-damage",
+    "question": "Does the basic electronics warranty cover accidental damage?",
+    "expected_substring": "not covered",
+    "required_document": "warranty-basic"
+  },
+  {
+    "name": "order-status-tool",
+    "question": "Where is order AG-1001?",
+    "expected_substring": "shipped",
+    "required_document": "order-lookup",
+    "expected_tool": "order_status"
+  },
+  {
+    "name": "order-status-no-invention",
+    "question": "My order is AG-9999. What is its status?",
+    "expected_substring": "could not find",
+    "required_document": "order-lookup",
+    "expected_tool": "order_status"
+  },
+  {
+    "name": "paraphrased-opened-laptop",
+    "question": "I used my new laptop for a month and a half. Can I still get my money back?",
+    "expected_substring": "repair",
+    "required_document": "refund-laptop-opened"
+  },
+  {
+    "name": "distractor-laptop-sale",
+    "question": "The spring laptop sale page mentions accessories. Does that change laptop refund eligibility?",
+    "expected_substring": "does not change",
+    "required_document": "distractor-laptop-sale"
+  },
+  {
+    "name": "multi-doc-holiday-final-sale",
+    "question": "Does the holiday return extension allow returning final-sale items in January?",
+    "expected_substring": "does not apply to final-sale",
+    "required_document": "refund-holiday"
+  },
+  {
+    "name": "multi-doc-gift-final-sale",
+    "question": "Can a gift recipient return a final-sale clearance item for store credit?",
+    "expected_substring": "not eligible",
+    "required_document": "final-sale"
+  },
+  {
+    "name": "approved-retailer-price-match",
+    "question": "A different retailer has the same item cheaper and in stock. What must be true for a price match?",
+    "expected_substring": "approved retailer",
+    "required_document": "price-match"
+  },
+  {
+    "name": "missing-order-id",
+    "question": "Can you tell me where my order is?",
+    "expected_substring": "order ID",
+    "required_document": "order-lookup"
+  },
+  {
+    "name": "holiday-subscription-distractor",
+    "question": "I activated a subscription in December. Does the holiday return extension refund it?",
+    "expected_substring": "does not apply",
+    "required_document": "refund-holiday"
+  },
+  {
+    "name": "defective-electronics-warranty",
+    "question": "My device seems to have a manufacturing defect after 6 months. What coverage applies?",
+    "expected_substring": "one-year limited warranty",
+    "required_document": "warranty-basic"
+  },
+  {
+    "name": "wrong-address-delay",
+    "question": "Can an incorrect address delay expedited shipping?",
+    "expected_substring": "incorrect addresses",
+    "required_document": "shipping-expedited"
+  },
+  {
+    "name": "return-opened-accessories",
+    "question": "An opened electronic item is missing accessories. Is that okay for return?",
+    "expected_substring": "all accessories",
+    "required_document": "refund-standard"
+  },
+  {
+    "name": "business-days-paraphrase",
+    "question": "If I order Friday with standard delivery, should Saturday and Sunday count?",
+    "expected_substring": "do not count",
+    "required_document": "shipping-standard"
+  },
+  {
+    "name": "same-item-price-match",
+    "question": "Can support price-match a similar but not identical item?",
+    "expected_substring": "identical",
+    "required_document": "price-match"
+  },
+  {
+    "name": "cancel-before-billing",
+    "question": "When should I cancel to avoid the next subscription charge?",
+    "expected_substring": "before the next billing date",
+    "required_document": "subscription-cancel"
+  },
+  {
+    "name": "gift-original-payment",
+    "question": "Can a gift recipient get money returned to the original card?",
+    "expected_substring": "purchaser's account",
+    "required_document": "gift-return"
+  },
+  {
+    "name": "carrier-disruption",
+    "question": "A carrier disruption delayed my two-day shipping. Is that covered by the policy?",
+    "expected_substring": "carrier disruptions",
+    "required_document": "shipping-expedited"
+  },
+  {
+    "name": "opened-laptop-14-days",
+    "question": "I opened a laptop and it was delivered 13 days ago. What is the likely return answer?",
+    "expected_substring": "within 14 days",
+    "required_document": "refund-laptop-opened"
+  },
+  {
+    "name": "activated-subscription-holiday",
+    "question": "Can an activated subscription bought during the holidays use the January 31 extension?",
+    "expected_substring": "activated subscriptions",
+    "required_document": "refund-holiday"
+  }
+]

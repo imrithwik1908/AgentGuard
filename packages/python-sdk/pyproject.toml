@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentguard-reliability"
+version = "0.1.0"
+description = "Python instrumentation SDK for AgentGuard AI application regression testing"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+authors = [
+  { name = "AgentGuard Contributors" }
+]
+keywords = ["llm", "agents", "observability", "evaluation", "regression-testing", "ai"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Testing",
+  "Topic :: System :: Monitoring",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/csairithwikreddy/AgentGuard"
+Documentation = "https://github.com/csairithwikreddy/AgentGuard/tree/main/docs"
+Repository = "https://github.com/csairithwikreddy/AgentGuard"
+Issues = "https://github.com/csairithwikreddy/AgentGuard/issues"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.2",
+  "ruff>=0.6.3",
+]
+
+[tool.setuptools.packages.find]
+include = ["agentguard*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
