@@ -5,7 +5,10 @@ import { loginAccount } from "@/lib/api";
 import { setSession } from "@/lib/session";
 
 function authRedirect(request: Request, path: string) {
-  return NextResponse.redirect(new URL(path, request.url));
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  const protocol = request.headers.get("x-forwarded-proto") ?? "https";
+  const origin = host ? `${protocol}://${host}` : request.url;
+  return NextResponse.redirect(new URL(path, origin));
 }
 
 export async function POST(request: Request) {

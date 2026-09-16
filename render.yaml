@@ -52,10 +52,7 @@ services:
     region: oregon
     envVars:
       - key: AGENTGUARD_API_URL
-        fromService:
-          name: agentguard-api
-          type: web
-          property: hostport
+        value: https://agentguard-api-7evp.onrender.com
 
 databases:
   - name: agentguard-postgres
