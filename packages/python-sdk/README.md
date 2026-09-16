@@ -6,6 +6,14 @@ The Python SDK connects your AI/LLM/RAG/agent application to AgentGuard so the w
 
 ## Install
 
+PyPI publishing is prepared but not completed yet. Install directly from GitHub for now:
+
+```bash
+python -m pip install "agentguard-reliability @ git+https://github.com/imrithwik1908/AgentGuard.git#subdirectory=packages/python-sdk"
+```
+
+After the first PyPI release, the package will install with:
+
 ```bash
 python -m pip install agentguard-reliability
 ```

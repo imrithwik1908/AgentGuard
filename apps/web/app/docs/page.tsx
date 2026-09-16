@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-const install = `python -m pip install agentguard-reliability`;
+const install = `python -m pip install "agentguard-reliability @ git+https://github.com/imrithwik1908/AgentGuard.git#subdirectory=packages/python-sdk"`;
 
 const sdkExample = `from decimal import Decimal
 from agentguard import AgentGuard
@@ -58,11 +58,12 @@ export default function DocsPage() {
             </p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
-            <div className="text-sm font-semibold text-ink-950">Public package</div>
+            <div className="text-sm font-semibold text-ink-950">Install the SDK today</div>
             <code className="mt-3 block rounded-xl bg-slate-950 p-3 text-xs text-slate-100">
               {install}
             </code>
             <p className="mt-3 text-sm leading-5 text-slate-600">
+              PyPI release is prepared but not published yet. Install directly from GitHub for now.
               Distribution name: <strong>agentguard-reliability</strong>. Import name:{" "}
               <strong>agentguard</strong>.
             </p>

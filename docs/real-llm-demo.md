@@ -23,10 +23,10 @@ cd ~/agentguard-real-llm-demo
 python3 -m venv .venv
 source .venv/bin/activate
 
-python -m pip install agentguard-reliability openai
+python -m pip install "agentguard-reliability @ git+https://github.com/imrithwik1908/AgentGuard.git#subdirectory=packages/python-sdk" openai
 ```
 
-Before public SDK publishing, install from the local repo:
+For local repository development:
 
 ```bash
 python -m pip install -e "/Users/csairithwikreddy/Documents/ChatGPT/AgentGuard/packages/python-sdk"

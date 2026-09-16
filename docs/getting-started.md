@@ -14,13 +14,13 @@ Run the local AgentGuard stack:
 - API: `http://127.0.0.1:8000`
 - API health: `http://127.0.0.1:8000/healthz`
 
-Install the SDK in your AI application:
+Install the SDK in your AI application from the public GitHub repository:
 
 ```bash
-python -m pip install agentguard-reliability
+python -m pip install "agentguard-reliability @ git+https://github.com/imrithwik1908/AgentGuard.git#subdirectory=packages/python-sdk"
 ```
 
-For local repository development before PyPI publishing:
+For local repository development:
 
 ```bash
 python -m pip install -e "/path/to/AgentGuard/packages/python-sdk"

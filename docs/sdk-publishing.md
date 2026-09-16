@@ -1,6 +1,6 @@
 # AgentGuard SDK Publishing
 
-The public Python distribution should use a unique PyPI package name:
+The public Python distribution should use a unique PyPI package name once it is published:
 
 ```bash
 pip install agentguard-reliability

@@ -16,13 +16,13 @@ It records:
 
 ## Installation
 
-After public release:
+Install from the public GitHub repository:
 
 ```bash
-python -m pip install agentguard-reliability
+python -m pip install "agentguard-reliability @ git+https://github.com/imrithwik1908/AgentGuard.git#subdirectory=packages/python-sdk"
 ```
 
-Before public release, install from the local repository:
+For local repository development:
 
 ```bash
 python -m pip install -e "/path/to/AgentGuard/packages/python-sdk"
