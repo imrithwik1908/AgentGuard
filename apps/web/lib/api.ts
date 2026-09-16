@@ -29,7 +29,7 @@ function normalizeApiUrl(value: string): string {
 }
 
 const API_URL = normalizeApiUrl(process.env.AGENTGUARD_API_URL ?? "http://localhost:8000");
-const REQUEST_TIMEOUT_MS = 1200;
+const REQUEST_TIMEOUT_MS = 10000;
 
 export function getApiUrl(): string {
   return API_URL;
