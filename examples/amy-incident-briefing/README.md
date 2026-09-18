@@ -10,7 +10,7 @@ AgentGuard, not this application, calculates evaluation results, comparisons, an
 ```bash
 python3.12 -m venv examples/amy-incident-briefing/.venv
 source examples/amy-incident-briefing/.venv/bin/activate
-python -m pip install -e packages/python-sdk
+python -m pip install packages/python-sdk
 
 export AGENTGUARD_BASE_URL=https://agentguard-api-7evp.onrender.com
 export AGENTGUARD_API_KEY='ag_...'

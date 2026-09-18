@@ -24,7 +24,7 @@ package from this checkout:
 python3.12 -m venv examples/real-user-smoke-test/.venv
 source examples/real-user-smoke-test/.venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e packages/python-sdk
+python -m pip install packages/python-sdk
 ```
 
 No heavyweight local model is installed. The standard-library model client works with an
