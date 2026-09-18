@@ -4,6 +4,7 @@ import clsx from "clsx";
 import { useMemo, useState } from "react";
 
 import { formatCost, formatDateTime, formatDuration } from "@/lib/format";
+import { spanEvidenceSummary } from "@/lib/evaluation-explanations";
 import { flattenForWaterfall } from "@/lib/trace-tree";
 import type { ApplicationVersion, Project, Span, Trace } from "@/lib/types";
 
@@ -208,6 +209,7 @@ function SpanDetails({ span, parent }: { span: Span; parent: Span | null }) {
   const hasInput = span.input !== null && span.input !== undefined;
   const hasOutput = span.output !== null && span.output !== undefined;
   const hasMetadata = Object.keys(span.metadata ?? {}).length > 0 || Object.keys(span.attributes ?? {}).length > 0;
+  const evidence = spanEvidenceSummary(span);
 
   return (
     <div className="space-y-5 p-4">
@@ -262,7 +264,19 @@ function SpanDetails({ span, parent }: { span: Span; parent: Span | null }) {
         <Field label="Cost" value={formatCost(span.estimated_cost)} />
       </dl>
 
+      {evidence.length ? (
+        <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {span.type === "LLM" ? "Generated answer" : span.type === "RETRIEVER" ? "Retrieved sources" : "Recorded action"}
+          </div>
+          <div className="mt-2 space-y-2 text-sm leading-6 text-slate-700">
+            {evidence.map((item, index) => <div key={`${index}:${item.slice(0, 30)}`}>{item}</div>)}
+          </div>
+        </section>
+      ) : null}
+
       <div className="space-y-3">
+        <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Raw step payloads</div>
         {span.error ? (
           <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-900">
             <div className="font-medium">{String(span.error.type ?? "Error")}</div>

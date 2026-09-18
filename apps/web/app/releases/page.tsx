@@ -12,6 +12,14 @@ import {
 } from "@/lib/api";
 import { formatPercent, formatScore } from "@/lib/format";
 import {
+  explainEvaluation,
+  evaluationReliability,
+  observedRuntimeChanges,
+  retrievalIds,
+  toolNames,
+  traceAnswer
+} from "@/lib/evaluation-explanations";
+import {
   findComparisonPair,
   findDefaultComparisonPair,
   type ChangeItem,
@@ -98,7 +106,20 @@ export default async function ReleasesPage({
     ? bucketsFromPairedComparison(comparison, evaluations.items, traces.items)
     : { regressed: [], improved: [], unchanged: [], notComparable: [] };
   const releaseState = releaseStateFromDecision(policyDecision);
-  const changes = pair ? summarizeConfigChanges(pair.baseline, pair.candidate) : [];
+  const representativeCase = [
+    ...buckets.regressed,
+    ...buckets.improved,
+    ...buckets.unchanged
+  ].find((item) => item.baselineTrace && item.candidateTrace) ?? null;
+  const storedChanges = pair ? summarizeConfigChanges(pair.baseline, pair.candidate) : [];
+  const runtimeChanges = representativeCase
+    ? observedRuntimeChanges(representativeCase.baselineTrace, representativeCase.candidateTrace).map(
+        (change) => ({ ...change, evidence: "observed" as const })
+      )
+    : [];
+  const changes = runtimeChanges.length
+    ? mergeChanges(storedChanges.filter((change) => change.evidence === "observed"), runtimeChanges)
+    : storedChanges;
   const comparedCount =
     comparison?.comparable_case_count ??
     buckets.regressed.length + buckets.improved.length + buckets.unchanged.length;
@@ -128,20 +149,20 @@ export default async function ReleasesPage({
           </div>
           {pair ? (
             <div className="rounded-2xl bg-white/70 p-4 shadow-sm">
-              <div className="text-xs uppercase tracking-wide opacity-60">Compared evidence</div>
+              <div className="text-xs uppercase tracking-wide opacity-60">Paired evaluator checks</div>
               <div className="mt-2 text-3xl font-semibold">{comparedCount}</div>
               <p className="mt-2 max-w-sm text-sm leading-5 opacity-75">
-                {formatPercent(comparison?.comparison_coverage)} comparison coverage: paired case checks with evidence from both versions.
+                {formatPercent(comparison?.comparison_coverage)} evaluator coverage: the share of relevant checks with evidence from both versions.
               </p>
             </div>
           ) : null}
         </div>
 
         <div className="mt-6 grid gap-3 md:grid-cols-4">
-          <Metric label="Regressed" value={buckets.regressed.length} detail="Paired checks worse in candidate" />
-          <Metric label="Improved" value={buckets.improved.length} detail="Paired checks fixed or improved" />
-          <Metric label="Unchanged" value={buckets.unchanged.length} detail="Equivalent paired checks" />
-          <Metric label="Not comparable" value={buckets.notComparable.length} detail="Missing evidence from one side" />
+          <Metric label="Regressed behaviors" value={buckets.regressed.length} detail="Test cases with at least one worse check" />
+          <Metric label="Improved behaviors" value={buckets.improved.length} detail="Test cases that fixed or improved checks" />
+          <Metric label="Unchanged behaviors" value={buckets.unchanged.length} detail="Test cases with equivalent evidence" />
+          <Metric label="Not comparable" value={buckets.notComparable.length} detail="Test cases missing evidence from one side" />
         </div>
       </section>
 
@@ -206,7 +227,7 @@ export default async function ReleasesPage({
 
           <div className="surface rounded-[2rem] p-5">
             <div className="text-xs font-medium uppercase tracking-[0.2em] text-cyan-700">
-              Observed configuration change
+              Observed application changes
             </div>
             <div className="mt-4">
               <ConfigChangeList
@@ -216,8 +237,8 @@ export default async function ReleasesPage({
               />
             </div>
             <p className="mt-4 text-xs leading-5 text-slate-500">
-              These are observed stored configuration differences only. Behavioral causality is not
-              inferred unless a specific evaluator provides evidence.
+              These differences come from registered version configuration or recorded run metadata.
+              They coincided with the evaluation result; AgentGuard does not claim they caused it.
             </p>
           </div>
         </section>
@@ -271,17 +292,17 @@ export default async function ReleasesPage({
           title="Regressions to investigate"
           description="Cases that worked better in the baseline than in this candidate."
         />
-        <CaseList items={buckets.regressed} empty="No paired regressions found for this comparison." tone="regressed" />
+        <CaseList items={buckets.regressed} empty="No paired regressions found for this comparison." tone="regressed" baselineLabel={pair?.baseline.version} candidateLabel={pair?.candidate.version} baselineVersionId={pair?.baseline.id} candidateVersionId={pair?.candidate.id} />
       </section>
 
       <section className="grid gap-5 lg:grid-cols-2">
         <div className="space-y-4">
           <SectionHeader title="Improvements" description="Checks the candidate fixed or improved." />
-          <CaseList items={buckets.improved} empty="No paired improvements found yet." tone="improved" />
+          <CaseList items={buckets.improved} empty="No paired improvements found yet." tone="improved" baselineLabel={pair?.baseline.version} candidateLabel={pair?.candidate.version} baselineVersionId={pair?.baseline.id} candidateVersionId={pair?.candidate.id} />
         </div>
         <div className="space-y-4">
           <SectionHeader title="Unchanged" description="Checks that remained equivalent." />
-          <CaseList items={buckets.unchanged.slice(0, 6)} empty="No unchanged paired checks yet." tone="unchanged" />
+          <CaseList items={buckets.unchanged.slice(0, 6)} empty="No unchanged paired checks yet." tone="unchanged" baselineLabel={pair?.baseline.version} candidateLabel={pair?.candidate.version} baselineVersionId={pair?.baseline.id} candidateVersionId={pair?.candidate.id} compact />
         </div>
       </section>
 
@@ -290,7 +311,7 @@ export default async function ReleasesPage({
           title="Not comparable yet"
           description="Cases missing baseline or candidate evidence. These are not regressions."
         />
-        <CaseList items={buckets.notComparable.slice(0, 8)} empty="Every visible case has evidence from both versions." tone="unchanged" />
+        <CaseList items={buckets.notComparable.slice(0, 8)} empty="Every visible case has evidence from both versions." tone="unchanged" baselineLabel={pair?.baseline.version} candidateLabel={pair?.candidate.version} baselineVersionId={pair?.baseline.id} candidateVersionId={pair?.candidate.id} compact />
       </section>
     </div>
   );
@@ -334,56 +355,102 @@ function bucketsFromPairedComparison(
 ): RegressionBuckets {
   const evaluationById = new Map(evaluations.map((evaluation) => [evaluation.id, evaluation]));
   const traceById = new Map(traces.map((trace) => [trace.id, trace]));
-  return {
-    regressed: comparison.regressed.map((item) => regressionCaseFromComparison(item, evaluationById, traceById)),
-    improved: comparison.improved.map((item) => regressionCaseFromComparison(item, evaluationById, traceById)),
-    unchanged: comparison.unchanged.map((item) => regressionCaseFromComparison(item, evaluationById, traceById)),
-    notComparable: comparison.not_comparable.map((item) => regressionCaseFromComparison(item, evaluationById, traceById))
-  };
+  const grouped = new Map<string, Array<{ item: CaseComparison; classification: CaseComparison["classification"] }>>();
+  for (const [classification, items] of [
+    ["REGRESSED", comparison.regressed],
+    ["IMPROVED", comparison.improved],
+    ["UNCHANGED", comparison.unchanged],
+    ["NOT_COMPARABLE", comparison.not_comparable]
+  ] as const) {
+    for (const item of items) {
+      const key = item.dataset_case_id ?? `unpaired:${item.evaluator_name}`;
+      const values = grouped.get(key) ?? [];
+      values.push({ item, classification });
+      grouped.set(key, values);
+    }
+  }
+
+  const buckets: RegressionBuckets = { regressed: [], improved: [], unchanged: [], notComparable: [] };
+  for (const [key, entries] of grouped) {
+    const item = regressionCaseFromComparisons(key, entries.map((entry) => entry.item), evaluationById, traceById);
+    const classifications = new Set(entries.map((entry) => entry.classification));
+    if (classifications.has("REGRESSED")) buckets.regressed.push(item);
+    else if (classifications.has("IMPROVED")) buckets.improved.push(item);
+    else if (classifications.has("NOT_COMPARABLE")) buckets.notComparable.push(item);
+    else buckets.unchanged.push(item);
+  }
+  return buckets;
 }
 
-function regressionCaseFromComparison(
-  item: CaseComparison,
+function regressionCaseFromComparisons(
+  key: string,
+  items: CaseComparison[],
   evaluationById: Map<string, EvaluationResult>,
   traceById: Map<string, Trace>
 ): RegressionCase {
-  const baselineEvaluation = item.baseline_evaluation_id
-    ? evaluationById.get(item.baseline_evaluation_id) ?? null
-    : null;
-  const candidateEvaluation = item.candidate_evaluation_id
-    ? evaluationById.get(item.candidate_evaluation_id) ?? null
-    : null;
-  const baselineEvaluations = baselineEvaluation ? [baselineEvaluation] : [];
-  const candidateEvaluations = candidateEvaluation ? [candidateEvaluation] : [];
+  const baselineEvaluations = uniqueEvaluations(items.flatMap((item) => {
+    const evaluation = item.baseline_evaluation_id ? evaluationById.get(item.baseline_evaluation_id) : null;
+    return evaluation ? [evaluation] : [];
+  }));
+  const candidateEvaluations = uniqueEvaluations(items.flatMap((item) => {
+    const evaluation = item.candidate_evaluation_id ? evaluationById.get(item.candidate_evaluation_id) : null;
+    return evaluation ? [evaluation] : [];
+  }));
   const all = [...baselineEvaluations, ...candidateEvaluations];
-  const candidateTrace = candidateEvaluation ? traceById.get(candidateEvaluation.trace_id) ?? null : null;
-  const baselineTrace = baselineEvaluation ? traceById.get(baselineEvaluation.trace_id) ?? null : null;
+  const candidateTrace = candidateEvaluations[0] ? traceById.get(candidateEvaluations[0].trace_id) ?? null : null;
+  const baselineTrace = baselineEvaluations[0] ? traceById.get(baselineEvaluations[0].trace_id) ?? null : null;
   const categories = Array.from(
     new Set(all.map((evaluation) => evaluatorInfo(evaluation.evaluator_name).category))
   );
   const title =
     titleFromTrace(candidateTrace ?? baselineTrace) ??
-    candidateEvaluation?.label ??
-    baselineEvaluation?.label ??
+    candidateEvaluations[0]?.label ??
+    baselineEvaluations[0]?.label ??
     "Behavioral test case";
+  const baselineScore = averageEvaluationScore(baselineEvaluations);
+  const candidateScore = averageEvaluationScore(candidateEvaluations);
+  const regressedItem = items.find((item) => item.classification === "REGRESSED");
   return {
-    key: `${item.dataset_case_id ?? "unknown"}:${item.evaluator_name}`,
+    key,
     title,
-    summary: item.explanation,
+    summary: caseSummary(items),
     baselineEvaluations,
     candidateEvaluations,
-    primaryEvaluation: candidateEvaluation ?? baselineEvaluation,
+    primaryEvaluation: candidateEvaluations.find((evaluation) => !evaluation.passed) ?? candidateEvaluations[0] ?? baselineEvaluations[0] ?? null,
     failedEvaluations: candidateEvaluations.filter((evaluation) => !evaluation.passed),
     categories,
-    baselinePassed: item.baseline_status === "PASS",
-    candidatePassed: item.candidate_status === "PASS",
-    baselineScore: numeric(item.baseline_score),
-    candidateScore: numeric(item.candidate_score),
-    scoreDelta: (numeric(item.candidate_score) ?? 0) - (numeric(item.baseline_score) ?? 0),
+    baselinePassed: baselineEvaluations.length > 0 && baselineEvaluations.every((evaluation) => evaluation.passed),
+    candidatePassed: candidateEvaluations.length > 0 && candidateEvaluations.every((evaluation) => evaluation.passed),
+    baselineScore,
+    candidateScore,
+    scoreDelta: (candidateScore ?? 0) - (baselineScore ?? 0),
     baselineTrace,
     candidateTrace,
-    failureAnalysis: item.failure_analysis
+    failureAnalysis: regressedItem?.failure_analysis ?? null
   };
+}
+
+function uniqueEvaluations(items: EvaluationResult[]) {
+  return [...new Map(items.map((item) => [item.id, item])).values()];
+}
+
+function averageEvaluationScore(items: EvaluationResult[]): number | null {
+  const values = items.map((item) => numeric(item.score)).filter((value): value is number => value !== null);
+  return values.length ? values.reduce((total, value) => total + value, 0) / values.length : null;
+}
+
+function caseSummary(items: CaseComparison[]): string {
+  const regressed = items.filter((item) => item.classification === "REGRESSED").length;
+  const improved = items.filter((item) => item.classification === "IMPROVED").length;
+  if (regressed && improved) return `${regressed} check(s) became worse and ${improved} improved in the candidate.`;
+  if (regressed) return `${regressed} check(s) worked better in the baseline than in the candidate.`;
+  if (improved) return `${improved} check(s) improved in the candidate.`;
+  if (items.some((item) => item.classification === "NOT_COMPARABLE")) return "One side is missing matching evaluation evidence.";
+  return "The paired checks produced equivalent evidence.";
+}
+
+function mergeChanges(left: ChangeItem[], right: ChangeItem[]): ChangeItem[] {
+  return [...new Map([...left, ...right].map((change) => [`${change.label}:${change.field ?? ""}`, change])).values()];
 }
 
 function titleFromTrace(trace: Trace | null): string | null {
@@ -423,18 +490,26 @@ function ConfigChangeList({
       </div>
       <div className="divide-y divide-slate-100">
         {changes.map((change) => (
-          <div key={change.label} className="grid gap-3 px-4 py-4 sm:grid-cols-[8rem_1fr_auto_1fr] sm:items-start">
-            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">
-              {configGroupLabel(change.label)}
-              {change.field ? (
-                <div className="mt-1 break-words font-mono text-[11px] normal-case tracking-normal text-slate-700">
-                  {change.field}
-                </div>
-              ) : null}
+          <div key={`${change.label}:${change.field ?? ""}`} className="px-4 py-4">
+            <div className="grid gap-3 sm:grid-cols-[8rem_1fr_auto_1fr] sm:items-start">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">
+                {configGroupLabel(change.label)}
+                {change.field ? (
+                  <div className="mt-1 break-words font-mono text-[11px] normal-case tracking-normal text-slate-700">
+                    {change.field}
+                  </div>
+                ) : null}
+              </div>
+              <CodeLikeValue value={change.before} />
+              <div className="hidden pt-1 text-slate-400 sm:block">→</div>
+              <CodeLikeValue value={change.after} align="right" />
             </div>
-            <CodeLikeValue value={change.before} />
-            <div className="hidden pt-1 text-slate-400 sm:block">→</div>
-            <CodeLikeValue value={change.after} align="right" />
+            {configGroupLabel(change.label) === "PROMPT" ? (
+              <details className="mt-3 sm:ml-[9rem]">
+                <summary className="cursor-pointer text-xs font-medium text-cyan-700">View prompt diff</summary>
+                <pre className="mt-2 max-h-64 overflow-auto rounded-xl bg-slate-950 p-3 text-xs leading-5 text-slate-100"><span className="text-red-300">- {change.before}</span>{"\n"}<span className="text-emerald-300">+ {change.after}</span></pre>
+              </details>
+            ) : null}
           </div>
         ))}
       </div>
@@ -487,11 +562,21 @@ function SectionHeader({ title, description }: { title: string; description: str
 function CaseList({
   items,
   empty,
-  tone
+  tone,
+  baselineLabel = "Baseline",
+  candidateLabel = "Candidate",
+  baselineVersionId,
+  candidateVersionId,
+  compact = false
 }: {
   items: RegressionCase[];
   empty: string;
   tone: "regressed" | "improved" | "unchanged";
+  baselineLabel?: string;
+  candidateLabel?: string;
+  baselineVersionId?: string;
+  candidateVersionId?: string;
+  compact?: boolean;
 }) {
   if (items.length === 0) {
     return <div className="surface rounded-2xl p-5 text-sm text-slate-600">{empty}</div>;
@@ -507,44 +592,65 @@ function CaseList({
               </div>
               <h3 className="mt-1 text-base font-semibold text-ink-950">{item.title}</h3>
               <p className="mt-1 max-w-3xl text-sm text-slate-600">{item.summary}</p>
-              {item.failureAnalysis ? (
-                <div className="mt-3 rounded-2xl border border-cyan-100 bg-cyan-50/70 p-3 text-sm text-cyan-950">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-cyan-700">
-                    AgentGuard analysis
-                  </div>
-                  <div className="mt-1">{String(item.failureAnalysis.summary ?? "Evidence differs between versions.")}</div>
-                  <div className="mt-1 text-xs text-cyan-800">
-                    Likely stage: {String(item.failureAnalysis.likely_failure_stage ?? "unknown")} ·
-                    Confidence: {String(item.failureAnalysis.confidence ?? "unknown")}
-                  </div>
-                </div>
-              ) : null}
               <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
                 <OutcomeBadge passed={item.baselinePassed} empty={item.baselineEvaluations.length === 0} />
-                <span className="text-slate-500">baseline</span>
+                <span className="font-medium text-slate-600">{baselineLabel}</span>
                 <span className="text-slate-300">→</span>
                 <OutcomeBadge passed={item.candidatePassed} empty={item.candidateEvaluations.length === 0} />
-                <span className="text-slate-500">candidate</span>
+                <span className="font-medium text-slate-600">{candidateLabel}</span>
               </div>
             </div>
             <div className="text-right">
               <div className={tone === "regressed" ? "text-red-700" : tone === "improved" ? "text-emerald-700" : "text-slate-700"}>
                 {scoreMovementLabel(item.scoreDelta)}
               </div>
-              <div className="text-xs text-slate-500">average score movement</div>
+              <div className="text-xs text-slate-500">average across this case&apos;s checks</div>
             </div>
           </div>
+
+          {!compact ? (
+            <>
+              <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
+                <div className="grid grid-cols-[minmax(8rem,0.75fr)_minmax(0,1fr)_minmax(0,1fr)] bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <span>Evidence</span>
+                  <span>{baselineLabel}</span>
+                  <span>{candidateLabel}</span>
+                </div>
+                <ComparisonRow label="Answer" baseline={traceAnswer(item.baselineTrace)} candidate={traceAnswer(item.candidateTrace)} multiline />
+                <ComparisonRow label="Retrieved sources" baseline={listText(retrievalIds(item.baselineTrace))} candidate={listText(retrievalIds(item.candidateTrace))} />
+                <ComparisonRow label="Tools" baseline={listText(toolNames(item.baselineTrace))} candidate={listText(toolNames(item.candidateTrace))} />
+                {pairedEvaluatorRows(item).map((row) => (
+                  <EvaluationComparisonRow key={row.name} name={row.name} baseline={row.baseline} candidate={row.candidate} />
+                ))}
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4 text-sm text-cyan-950">
+                <div className="text-xs font-semibold uppercase tracking-wide text-cyan-700">What changed in this case?</div>
+                <p className="mt-1 leading-6">{caseDifferenceExplanation(item)}</p>
+                <p className="mt-1 text-xs text-cyan-800">This describes observed evidence, not proven causality.</p>
+              </div>
+            </>
+          ) : null}
+
           <div className="mt-4 flex flex-wrap gap-2">
             {item.candidateTrace ? (
               <Link
-                href={`/traces/${item.candidateTrace.id}`}
+                href={traceComparisonHref(item.candidateTrace.id, "candidate", baselineVersionId, candidateVersionId)}
                 className="rounded-full bg-ink-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-ink-800"
               >
-                Investigate run
+                Investigate {candidateLabel}
+              </Link>
+            ) : null}
+            {item.baselineTrace && !compact ? (
+              <Link
+                href={traceComparisonHref(item.baselineTrace.id, "baseline", baselineVersionId, candidateVersionId)}
+                className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Open {baselineLabel}
               </Link>
             ) : null}
             <details className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 md:w-auto md:min-w-[34rem]">
-              <summary className="cursor-pointer font-medium text-slate-700">Evaluation details</summary>
+              <summary className="cursor-pointer font-medium text-slate-700">How scores were calculated</summary>
               <div className="mt-3 grid min-w-0 gap-3 pb-2 text-xs leading-5 lg:grid-cols-2">
                 <EvidenceColumn title="Baseline evidence" items={item.baselineEvaluations} />
                 <EvidenceColumn title="Candidate evidence" items={item.candidateEvaluations} />
@@ -579,19 +685,26 @@ function EvidenceColumn({ title, items }: { title: string; items: EvaluationResu
       <div className="mt-2 space-y-2">
         {items.map((item) => {
           const info = evaluatorInfo(item.evaluator_name);
+          const reasoning = explainEvaluation(item);
           return (
             <div key={item.id} className="rounded-xl bg-white p-2">
               <div className="flex items-center justify-between gap-2">
                 <span>{info.name}</span>
                 <EvaluationStatusBadge status={item.status} />
               </div>
-              <div className="mt-1 text-slate-500">
-                Score {formatScore(item.score)}
-                {item.threshold ? ` · threshold ${formatScore(item.threshold)}` : ""}
-              </div>
+              <div className="mt-1 text-slate-700">{reasoning.summary}</div>
+              <div className="mt-1 text-slate-500">{reasoning.calculation}</div>
+              {reasoning.missing.length ? <div className="mt-1 text-red-700">Missing: {reasoning.missing.join(", ")}</div> : null}
+              <div className="mt-1 text-slate-500">{evaluationReliability(item)}</div>
               <details className="mt-1">
                 <summary className="cursor-pointer text-slate-500">Advanced details</summary>
-                <div className="mt-1 font-mono text-[11px]">{item.evaluator_name}</div>
+                <div className="mt-1 space-y-1 font-mono text-[11px]">
+                  <div>raw score: {formatScore(item.score)}</div>
+                  <div>threshold: {formatScore(item.threshold)}</div>
+                  <div>evaluator: {item.evaluator_name}@{item.evaluator_version}</div>
+                  <div>method: {item.method}</div>
+                  {item.judge_model ? <div>judge model: {item.judge_model}</div> : null}
+                </div>
               </details>
             </div>
           );
@@ -599,6 +712,79 @@ function EvidenceColumn({ title, items }: { title: string; items: EvaluationResu
       </div>
     </div>
   );
+}
+
+function pairedEvaluatorRows(item: RegressionCase) {
+  const baseline = new Map(item.baselineEvaluations.map((evaluation) => [evaluation.evaluator_name, evaluation]));
+  const candidate = new Map(item.candidateEvaluations.map((evaluation) => [evaluation.evaluator_name, evaluation]));
+  return [...new Set([...baseline.keys(), ...candidate.keys()])].map((name) => ({
+    name,
+    baseline: baseline.get(name) ?? null,
+    candidate: candidate.get(name) ?? null
+  }));
+}
+
+function EvaluationComparisonRow({ name, baseline, candidate }: { name: string; baseline: EvaluationResult | null; candidate: EvaluationResult | null }) {
+  const info = evaluatorInfo(name);
+  return (
+    <div className="grid grid-cols-[minmax(8rem,0.75fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 border-t border-slate-100 px-3 py-3 text-sm">
+      <div><div className="font-medium text-ink-950">{info.name}</div><div className="text-xs text-slate-500">{info.category}</div></div>
+      <EvaluationCell evaluation={baseline} />
+      <EvaluationCell evaluation={candidate} />
+    </div>
+  );
+}
+
+function EvaluationCell({ evaluation }: { evaluation: EvaluationResult | null }) {
+  if (!evaluation) return <span className="text-slate-400">No evidence</span>;
+  return (
+    <div>
+      <EvaluationStatusBadge status={evaluation.status} />
+      <div className="mt-1 text-xs text-slate-600">{Math.round((numeric(evaluation.score) ?? 0) * 100)} / 100</div>
+    </div>
+  );
+}
+
+function ComparisonRow({ label, baseline, candidate, multiline = false }: { label: string; baseline: string | null; candidate: string | null; multiline?: boolean }) {
+  return (
+    <div className="grid grid-cols-[minmax(8rem,0.75fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 border-t border-slate-100 px-3 py-3 text-sm">
+      <div className="font-medium text-ink-950">{label}</div>
+      <div className={`${multiline ? "line-clamp-5 whitespace-pre-wrap" : "break-words"} text-slate-600`}>{baseline ?? "Not recorded"}</div>
+      <div className={`${multiline ? "line-clamp-5 whitespace-pre-wrap" : "break-words"} text-slate-600`}>{candidate ?? "Not recorded"}</div>
+    </div>
+  );
+}
+
+function listText(values: string[]): string | null {
+  return values.length ? values.join(", ") : null;
+}
+
+function caseDifferenceExplanation(item: RegressionCase): string {
+  const rows = pairedEvaluatorRows(item);
+  const regressions = rows.filter((row) => row.baseline?.passed && row.candidate && !row.candidate.passed);
+  const retrieval = regressions.find((row) => evaluatorInfo(row.name).category === "Retrieval");
+  if (retrieval?.candidate) {
+    const detail = explainEvaluation(retrieval.candidate);
+    return `The first supported difference is retrieval evidence. ${detail.summary}${detail.missing.length ? ` Missing: ${detail.missing.join(", ")}.` : ""}`;
+  }
+  const tool = regressions.find((row) => evaluatorInfo(row.name).category === "Agent Behavior");
+  if (tool?.candidate) return `The first supported difference is agent behavior. ${explainEvaluation(tool.candidate).summary}`;
+  const answer = regressions.find((row) => evaluatorInfo(row.name).category === "Answer Quality");
+  if (answer?.candidate) {
+    const detail = explainEvaluation(answer.candidate);
+    const retrievalStable = rows.filter((row) => evaluatorInfo(row.name).category === "Retrieval").every((row) => row.baseline?.passed === row.candidate?.passed);
+    const prefix = retrievalStable ? "Recorded retrieval checks remained equivalent; the generated answer changed." : "The generated answer no longer met the stored requirement.";
+    return `${prefix} ${detail.summary}${detail.missing.length ? ` Missing: ${detail.missing.join(", ")}.` : ""}`;
+  }
+  if (item.failureAnalysis?.summary) return String(item.failureAnalysis.summary);
+  return "AgentGuard found a paired score difference. Open the score calculation and both executions for the supporting evidence.";
+}
+
+function traceComparisonHref(traceId: string, role: "baseline" | "candidate", baselineVersionId?: string, candidateVersionId?: string) {
+  const params = new URLSearchParams({ role });
+  if (baselineVersionId) params.set("baseline_version_id", baselineVersionId);
+  if (candidateVersionId) params.set("candidate_version_id", candidateVersionId);
+  return `/traces/${traceId}?${params.toString()}`;
 }
 
 function scoreMovementLabel(value: string | number | null | undefined): string {

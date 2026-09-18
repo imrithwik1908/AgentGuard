@@ -103,6 +103,15 @@ export interface EvaluationResult {
   application_version_id: string;
   trace_id: string;
   evaluator_name: string;
+  evaluator_version: string;
+  method:
+    | "DETERMINISTIC_BEHAVIORAL"
+    | "DETERMINISTIC_OPERATIONAL"
+    | "RETRIEVAL"
+    | "LLM_JUDGE"
+    | "INSTRUMENTATION_ONLY";
+  rubric: Record<string, JsonValue>;
+  judge_model: string | null;
   score: string | number;
   threshold: string | number | null;
   status: EvaluationStatus;

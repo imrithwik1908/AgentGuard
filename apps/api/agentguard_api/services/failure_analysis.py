@@ -42,7 +42,14 @@ def _stage_for_evaluator(evaluator_name: str) -> str:
         return "retrieval"
     if "tool" in lowered:
         return "tool"
-    if "answer" in lowered or "semantic" in lowered or "content" in lowered:
+    if (
+        "answer" in lowered
+        or "semantic" in lowered
+        or "content" in lowered
+        or "keyword" in lowered
+        or "exact" in lowered
+        or "structured" in lowered
+    ):
         return "generation"
     if "runtime" in lowered or "trace" in lowered or "latency" in lowered:
         return "workflow"
