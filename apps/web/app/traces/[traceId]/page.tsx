@@ -4,7 +4,7 @@ import { ApiUnavailable } from "@/components/api-unavailable";
 import { EvaluationStatusBadge } from "@/components/evaluation-status-badge";
 import { TraceExplorer } from "@/components/trace-explorer";
 import { formatDateTime, formatScore } from "@/lib/format";
-import { getProject, getTrace, listEvaluations, listVersions } from "@/lib/api";
+import { ApiRequestError, getProject, getTrace, listEvaluations, listVersions } from "@/lib/api";
 import { evaluatorInfo } from "@/lib/product-intelligence";
 
 import { createStatusEvaluationAction } from "../actions";
@@ -53,6 +53,28 @@ export default async function TraceDetailPage({
       listEvaluations({ traceId: trace.id })
     ]);
   } catch (error) {
+    if (error instanceof ApiRequestError && error.status === 404) {
+      return (
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-panel">
+          <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+            Run unavailable
+          </div>
+          <h1 className="mt-2 text-xl font-semibold text-ink-950">
+            This run was not found in your workspace.
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+            It may have been removed, or the link may belong to a different workspace. AgentGuard
+            does not reveal resources outside your workspace.
+          </p>
+          <Link
+            href="/traces"
+            className="mt-5 inline-flex rounded-full bg-ink-950 px-4 py-2 text-sm font-medium text-white hover:bg-ink-800"
+          >
+            Back to runs
+          </Link>
+        </section>
+      );
+    }
     return (
       <ApiUnavailable
         title="Run investigation cannot reach the AgentGuard API"
@@ -166,20 +188,14 @@ export default async function TraceDetailPage({
                     <div className="mt-1 text-xs text-slate-500">{formatDateTime(evaluation.created_at)}</div>
                     <details className="mt-1 text-xs text-slate-500">
                       <summary className="cursor-pointer">Advanced evaluator details</summary>
-                      <div className="mt-1 font-mono">{evaluation.evaluator_name}</div>
+                      <dl className="mt-2 grid gap-2 rounded-xl bg-white/70 p-3 font-mono">
+                        <div>raw score: {formatScore(evaluation.score)}</div>
+                        <div>threshold: {formatScore(evaluation.threshold)}</div>
+                        <div>evaluator: {evaluation.evaluator_name}</div>
+                      </dl>
                     </details>
                   </div>
                   <EvaluationStatusBadge status={evaluation.status} />
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                  <div className="rounded-xl bg-white/70 p-3">
-                    <div className="text-xs uppercase tracking-wide text-slate-500">Score</div>
-                    <div className="mt-1 text-ink-950">{formatScore(evaluation.score)}</div>
-                  </div>
-                  <div className="rounded-xl bg-white/70 p-3">
-                    <div className="text-xs uppercase tracking-wide text-slate-500">Threshold</div>
-                    <div className="mt-1 text-ink-950">{formatScore(evaluation.threshold)}</div>
-                  </div>
                 </div>
                 {evaluation.explanation ? (
                   <p className="mt-3 text-sm text-slate-600">{evaluation.explanation}</p>
