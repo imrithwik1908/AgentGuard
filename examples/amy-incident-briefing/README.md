@@ -34,3 +34,14 @@ python examples/amy-incident-briefing/app.py \
 
 Append `--offline-fixture` when validating the transport and evaluation workflow without a model
 credential. Fixture spans are explicitly labeled and are not presented as real LLM inference.
+
+For a real, zero-cost local model on Apple Silicon, install MLX LM and append `--local-model`:
+
+```bash
+python -m pip install mlx-lm
+python examples/amy-incident-briefing/app.py \
+  --dataset-id "$AGENTGUARD_DATASET_ID" --version stable-v1 --local-model
+```
+
+The default is the small `mlx-community/Qwen2.5-0.5B-Instruct-4bit` model. It is downloaded once,
+runs locally without an API key, and is recorded in AgentGuard as provider `local-mlx`.

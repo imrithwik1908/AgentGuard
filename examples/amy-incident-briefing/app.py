@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import math
 import os
@@ -13,6 +14,7 @@ from typing import Any
 from urllib import error, request
 
 import certifi
+
 from agentguard import AgentGuard
 
 HERE = Path(__file__).resolve().parent
@@ -40,7 +42,9 @@ VERSIONS = {
     "candidate-v2": VersionConfig(
         top_k=5,
         temperature=0.3,
-        prompt="Write a concise incident briefing from the supplied evidence and cite incident IDs.",
+        prompt=(
+            "Write a concise incident briefing from the supplied evidence and cite incident IDs."
+        ),
     ),
 }
 
@@ -80,7 +84,9 @@ def retrieve(question: str, documents: list[dict[str, Any]], top_k: int) -> list
     ]
 
 
-def lookup_incident_metadata(ids: list[str], documents: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def lookup_incident_metadata(
+    ids: list[str], documents: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     selected = set(ids)
     return [
         {
@@ -116,7 +122,18 @@ def provider_completion(messages: list[dict[str, str]], model: str, temperature:
         ) as reply:
             payload = json.loads(reply.read().decode("utf-8"))
     except error.HTTPError as exc:
-        raise RuntimeError(f"model provider returned HTTP {exc.code}") from exc
+        body = exc.read().decode("utf-8", errors="replace")[:2000]
+        try:
+            provider_error = json.loads(body).get("error", {})
+            detail = ", ".join(
+                f"{key}={provider_error[key]}"
+                for key in ("message", "type", "code")
+                if provider_error.get(key)
+            )
+        except (AttributeError, json.JSONDecodeError):
+            detail = body.strip()[:500]
+        suffix = f": {detail}" if detail else ""
+        raise RuntimeError(f"model provider returned HTTP {exc.code}{suffix}") from exc
     except (OSError, TimeoutError) as exc:
         raise RuntimeError(f"model provider was unreachable: {exc}") from exc
     return {
@@ -139,6 +156,36 @@ def fixture_completion(question: str, evidence: str) -> dict:
         "usage": {
             "prompt_tokens": max(1, len(evidence.split())),
             "completion_tokens": max(1, len(answer.split())),
+        },
+    }
+
+
+@functools.lru_cache(maxsize=1)
+def load_local_model(model_id: str):
+    try:
+        from mlx_lm import load
+    except ImportError as exc:
+        raise RuntimeError(
+            "local model support requires: python -m pip install mlx-lm"
+        ) from exc
+    return load(model_id)
+
+
+def local_completion(messages: list[dict[str, str]], model_id: str) -> dict:
+    from mlx_lm import generate
+
+    model, tokenizer = load_local_model(model_id)
+    prompt = tokenizer.apply_chat_template(
+        messages,
+        tokenize=False,
+        add_generation_prompt=True,
+    )
+    answer = generate(model, tokenizer, prompt=prompt, max_tokens=180, verbose=False).strip()
+    return {
+        "answer": answer,
+        "usage": {
+            "prompt_tokens": len(tokenizer.encode(prompt)),
+            "completion_tokens": len(tokenizer.encode(answer)),
         },
     }
 
@@ -175,14 +222,24 @@ def build_messages(question: str, evidence: str, metadata: list[dict], config: V
     ]
 
 
-def run_case(case: dict[str, Any], version: str, offline_fixture: bool) -> dict[str, Any]:
+def run_case(
+    case: dict[str, Any],
+    version: str,
+    offline_fixture: bool,
+    local_model: str | None,
+) -> dict[str, Any]:
     config = VERSIONS[version]
     documents = read_json(CORPUS)
     question = case["question"]
-    model = "offline-extractive-fixture" if offline_fixture else os.getenv(
-        "LLM_MODEL", "gpt-4.1-mini"
-    )
-    provider = "offline-fixture" if offline_fixture else "openai-compatible"
+    if offline_fixture:
+        model = "offline-extractive-fixture"
+        provider = "offline-fixture"
+    elif local_model:
+        model = local_model
+        provider = "local-mlx"
+    else:
+        model = os.getenv("LLM_MODEL", "gpt-4.1-mini")
+        provider = "openai-compatible"
     client = AgentGuard(
         base_url=os.environ["AGENTGUARD_BASE_URL"],
         project=os.environ["AGENTGUARD_PROJECT"],
@@ -227,11 +284,12 @@ def run_case(case: dict[str, Any], version: str, offline_fixture: bool) -> dict[
             model=model,
             input={"messages": messages},
         ) as span:
-            completion = (
-                fixture_completion(question, evidence)
-                if offline_fixture
-                else provider_completion(messages, model, config.temperature)
-            )
+            if offline_fixture:
+                completion = fixture_completion(question, evidence)
+            elif local_model:
+                completion = local_completion(messages, model)
+            else:
+                completion = provider_completion(messages, model, config.temperature)
             usage = completion["usage"]
             span.set_attributes(
                 input_tokens=usage.get("prompt_tokens"),
@@ -267,6 +325,12 @@ def main() -> int:
     parser.add_argument("--dataset-id")
     parser.add_argument("--case-limit", type=int)
     parser.add_argument("--offline-fixture", action="store_true")
+    parser.add_argument(
+        "--local-model",
+        nargs="?",
+        const="mlx-community/Qwen2.5-0.5B-Instruct-4bit",
+        help="run a small local MLX model; optionally supply another MLX model ID",
+    )
     parser.add_argument("--import-suite", action="store_true")
     parser.add_argument("--project-id")
     args = parser.parse_args()
@@ -275,8 +339,15 @@ def main() -> int:
     missing = [name for name in required if not os.getenv(name)]
     if missing:
         parser.error(f"missing environment variables: {', '.join(missing)}")
-    if not args.offline_fixture and not args.import_suite and not os.getenv("LLM_API_KEY"):
-        parser.error("LLM_API_KEY is required unless --offline-fixture is used")
+    if args.offline_fixture and args.local_model:
+        parser.error("choose either --offline-fixture or --local-model")
+    if (
+        not args.offline_fixture
+        and not args.local_model
+        and not args.import_suite
+        and not os.getenv("LLM_API_KEY")
+    ):
+        parser.error("LLM_API_KEY is required unless --offline-fixture or --local-model is used")
 
     if args.import_suite:
         if not args.project_id:
@@ -297,7 +368,10 @@ def main() -> int:
         try:
             print(
                 json.dumps(
-                    {"case": case["name"], **run_case(case, args.version, args.offline_fixture)},
+                    {
+                        "case": case["name"],
+                        **run_case(case, args.version, args.offline_fixture, args.local_model),
+                    },
                     indent=2,
                 )
             )
