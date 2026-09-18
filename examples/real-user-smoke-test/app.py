@@ -5,6 +5,7 @@ import json
 import math
 import os
 import re
+import ssl
 import sys
 import time
 from dataclasses import dataclass
@@ -13,10 +14,12 @@ from types import SimpleNamespace
 from typing import Any
 from urllib import error, request
 
+import certifi
 from agentguard import AgentGuard
 from agentguard.integrations.openai import instrument_openai
 
 HERE = Path(__file__).resolve().parent
+HTTPS_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 CORPUS_PATH = HERE / "data" / "meeting_notes.json"
 SUITE_PATH = HERE / "test_cases.json"
 
@@ -119,7 +122,11 @@ class OpenAICompatibleCompletions:
             method="POST",
         )
         try:
-            with request.urlopen(req, timeout=self.timeout_seconds) as response:
+            with request.urlopen(
+                req,
+                timeout=self.timeout_seconds,
+                context=HTTPS_CONTEXT,
+            ) as response:
                 raw = json.loads(response.read().decode("utf-8"))
         except error.HTTPError as exc:
             body = exc.read().decode("utf-8", errors="replace")[:500]
@@ -205,7 +212,7 @@ def agentguard_request(
         method=method,
     )
     try:
-        with request.urlopen(req, timeout=20) as response:
+        with request.urlopen(req, timeout=20, context=HTTPS_CONTEXT) as response:
             return json.loads(response.read().decode("utf-8"))
     except error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")[:1000]

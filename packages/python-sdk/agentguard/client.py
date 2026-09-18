@@ -5,6 +5,7 @@ import functools
 import inspect
 import json
 import logging
+import ssl
 import traceback
 import uuid
 from dataclasses import dataclass, field
@@ -13,7 +14,10 @@ from decimal import Decimal
 from typing import Any
 from urllib import error, request
 
+import certifi
+
 logger = logging.getLogger("agentguard")
+_HTTPS_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 
 _current_trace: contextvars.ContextVar[TraceContext | None] = contextvars.ContextVar(
     "agentguard_current_trace", default=None
@@ -483,7 +487,11 @@ class AgentGuard:
             method="POST",
         )
         try:
-            with request.urlopen(req, timeout=self.timeout_seconds) as response:
+            with request.urlopen(
+                req,
+                timeout=self.timeout_seconds,
+                context=_HTTPS_CONTEXT,
+            ) as response:
                 if response.status >= 400:
                     raise RuntimeError(f"AgentGuard ingestion failed with HTTP {response.status}")
         except (error.URLError, TimeoutError, RuntimeError) as exc:

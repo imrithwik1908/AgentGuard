@@ -22,7 +22,9 @@ classifiers = [
   "Topic :: Software Development :: Testing",
   "Topic :: System :: Monitoring",
 ]
-dependencies = []
+dependencies = [
+  "certifi>=2024.7.4",
+]
 
 [project.urls]
 Homepage = "https://github.com/imrithwik1908/AgentGuard"

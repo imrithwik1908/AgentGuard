@@ -5,15 +5,18 @@ import json
 import math
 import os
 import re
+import ssl
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib import error, request
 
+import certifi
 from agentguard import AgentGuard
 
 HERE = Path(__file__).resolve().parent
+HTTPS_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 CORPUS = HERE / "data" / "incidents.json"
 SUITE = HERE / "test_cases.json"
 
@@ -106,7 +109,11 @@ def provider_completion(messages: list[dict[str, str]], model: str, temperature:
         method="POST",
     )
     try:
-        with request.urlopen(req, timeout=float(os.getenv("LLM_TIMEOUT_SECONDS", "30"))) as reply:
+        with request.urlopen(
+            req,
+            timeout=float(os.getenv("LLM_TIMEOUT_SECONDS", "30")),
+            context=HTTPS_CONTEXT,
+        ) as reply:
             payload = json.loads(reply.read().decode("utf-8"))
     except error.HTTPError as exc:
         raise RuntimeError(f"model provider returned HTTP {exc.code}") from exc
@@ -148,7 +155,7 @@ def api_request(path: str, *, method: str = "GET", payload: dict | None = None) 
         method=method,
     )
     try:
-        with request.urlopen(req, timeout=20) as response:
+        with request.urlopen(req, timeout=20, context=HTTPS_CONTEXT) as response:
             return json.loads(response.read().decode("utf-8"))
     except error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")[:800]
