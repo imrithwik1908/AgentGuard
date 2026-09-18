@@ -1,0 +1,69 @@
+{
+  "name": "Incident Briefing Regression Suite",
+  "slug": "incident-briefing-regression-suite",
+  "description": "Checks whether the assistant can report incident owners, mitigations, causes, and follow-up decisions from stored evidence.",
+  "metadata": {"domain": "engineering-incidents", "owner": "Amy walkthrough"},
+  "cases": [
+    {
+      "name": "refresh-token-owner-and-cause",
+      "input": {"question": "Who owned the refresh-token incident and what caused it?"},
+      "expectations": {
+        "answer_requirement": "Nia Brooks, expired signing keys",
+        "required_sources": ["incident-104"],
+        "expected_tool": "lookup_incident_metadata"
+      },
+      "evaluators": ["builtin.keyword_coverage", "builtin.required_source", "builtin.expected_tool", "builtin.runtime_success"]
+    },
+    {
+      "name": "webhook-prevention-change",
+      "input": {"question": "What changes were made to prevent duplicate webhook delivery?"},
+      "expectations": {
+        "answer_requirement": "idempotency-key enforcement, delivery record commits",
+        "required_sources": ["incident-108"],
+        "expected_tool": "lookup_incident_metadata"
+      },
+      "evaluators": ["builtin.keyword_coverage", "builtin.required_source", "builtin.expected_tool", "builtin.runtime_success"]
+    },
+    {
+      "name": "search-outage-mitigation",
+      "input": {"question": "How was the search outage mitigated and who led the response?"},
+      "expectations": {
+        "answer_requirement": "previous alias, Amy Nguyen",
+        "required_sources": ["incident-111"],
+        "expected_tool": "lookup_incident_metadata"
+      },
+      "evaluators": ["builtin.keyword_coverage", "builtin.required_source", "builtin.expected_tool", "builtin.runtime_success"]
+    },
+    {
+      "name": "search-follow-up-deadline",
+      "input": {"question": "When is the automated search release check due, and what does it validate?"},
+      "expectations": {
+        "answer_requirement": "September 19, document-count",
+        "required_sources": ["incident-111", "review-2026-09-05"],
+        "expected_tool": "lookup_incident_metadata"
+      },
+      "evaluators": ["builtin.keyword_coverage", "builtin.required_source", "builtin.expected_tool", "builtin.runtime_success"]
+    },
+    {
+      "name": "analytics-data-loss",
+      "input": {"question": "Was data lost during the analytics export incident, and what limit was added?"},
+      "expectations": {
+        "answer_requirement": "No customer data was lost, per-workspace concurrency limits",
+        "required_sources": ["incident-113"],
+        "expected_tool": "lookup_incident_metadata"
+      },
+      "evaluators": ["builtin.keyword_coverage", "builtin.required_source", "builtin.expected_tool", "builtin.runtime_success"]
+    },
+    {
+      "name": "notification-follow-up",
+      "input": {"question": "What permanent follow-up was chosen for notification preference drift?"},
+      "expectations": {
+        "answer_requirement": "sequence-number validation, preference events",
+        "required_sources": ["incident-115"],
+        "expected_tool": "lookup_incident_metadata",
+        "latency_budget_ms": 20000
+      },
+      "evaluators": ["builtin.keyword_coverage", "builtin.required_source", "builtin.expected_tool", "builtin.runtime_success", "builtin.latency"]
+    }
+  ]
+}

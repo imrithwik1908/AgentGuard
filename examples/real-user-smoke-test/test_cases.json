@@ -1,0 +1,139 @@
+{
+  "name": "Meeting Notes Regression Suite",
+  "slug": "meeting-notes-regression-suite",
+  "description": "Representative questions about decisions, owners, dates, risks, and changes across project meetings.",
+  "metadata": {
+    "domain": "meeting-notes",
+    "owner": "Bryan smoke test"
+  },
+  "cases": [
+    {
+      "name": "design-handoff-deadline",
+      "input": {"question": "What deadline did the design team agree on for the handoff?"},
+      "expectations": {
+        "answer_requirement": "September 26, design handoff",
+        "required_sources": ["design-sync-2026-09-08"],
+        "expected_tool": "lookup_meeting_metadata",
+        "latency_budget_ms": 20000
+      },
+      "evaluators": [
+        "builtin.keyword_coverage",
+        "builtin.required_source",
+        "builtin.expected_tool",
+        "builtin.runtime_success",
+        "builtin.latency"
+      ]
+    },
+    {
+      "name": "api-migration-owner",
+      "input": {"question": "Who owns the API migration task, and what endpoint is changing?"},
+      "expectations": {
+        "answer_requirement": "Bryan Chen, versioned ingestion endpoint",
+        "required_sources": ["platform-planning-2026-09-09"],
+        "expected_tool": "lookup_meeting_metadata",
+        "latency_budget_ms": 20000
+      },
+      "evaluators": [
+        "builtin.keyword_coverage",
+        "builtin.required_source",
+        "builtin.expected_tool",
+        "builtin.runtime_success"
+      ]
+    },
+    {
+      "name": "launch-risk-meeting",
+      "input": {"question": "Which meeting mentioned the launch risk, and what was the risk?"},
+      "expectations": {
+        "answer_requirement": "Thursday launch readiness, security approval, API-key rotation",
+        "required_sources": ["launch-readiness-2026-09-10"],
+        "expected_tool": "lookup_meeting_metadata"
+      },
+      "evaluators": [
+        "builtin.keyword_coverage",
+        "builtin.required_source",
+        "builtin.expected_tool",
+        "builtin.runtime_success"
+      ]
+    },
+    {
+      "name": "monday-thursday-decision-change",
+      "input": {"question": "What changed between the Monday launch decision and the Thursday decision?"},
+      "expectations": {
+        "answer_requirement": "single public launch, staged release, internal workspaces",
+        "required_sources": [
+          "product-review-2026-09-07",
+          "launch-readiness-2026-09-10"
+        ],
+        "expected_tool": "lookup_meeting_metadata"
+      },
+      "evaluators": [
+        "builtin.keyword_coverage",
+        "builtin.required_source",
+        "builtin.expected_tool",
+        "builtin.runtime_success"
+      ]
+    },
+    {
+      "name": "security-follow-up-date",
+      "input": {"question": "When is the remaining security audit-log review?"},
+      "expectations": {
+        "answer_requirement": "September 22, audit-log review",
+        "required_sources": ["security-review-2026-09-15"],
+        "expected_tool": "lookup_meeting_metadata"
+      },
+      "evaluators": [
+        "builtin.keyword_coverage",
+        "builtin.required_source",
+        "builtin.expected_tool",
+        "builtin.runtime_success"
+      ]
+    },
+    {
+      "name": "trace-retention-decision",
+      "input": {"question": "What trace-retention default did the team choose for the pilot?"},
+      "expectations": {
+        "answer_requirement": "30-day, trace retention, pilot",
+        "required_sources": ["data-governance-2026-09-16"],
+        "expected_tool": "lookup_meeting_metadata"
+      },
+      "evaluators": [
+        "builtin.keyword_coverage",
+        "builtin.required_source",
+        "builtin.expected_tool",
+        "builtin.runtime_success"
+      ]
+    },
+    {
+      "name": "localization-open-question",
+      "input": {"question": "What is still unresolved for the Spanish documentation work?"},
+      "expectations": {
+        "answer_requirement": "reviewer, technical terminology, September 24",
+        "required_sources": ["localization-planning-2026-09-17"],
+        "expected_tool": "lookup_meeting_metadata"
+      },
+      "evaluators": [
+        "builtin.keyword_coverage",
+        "builtin.required_source",
+        "builtin.expected_tool",
+        "builtin.runtime_success"
+      ]
+    },
+    {
+      "name": "worker-capacity-plan",
+      "input": {"question": "What worker capacity and queue alert threshold were agreed on?"},
+      "expectations": {
+        "answer_requirement": "four jobs, two minutes, queue wait time",
+        "required_sources": ["reliability-review-2026-09-18"],
+        "expected_tool": "lookup_meeting_metadata",
+        "latency_budget_ms": 20000
+      },
+      "evaluators": [
+        "builtin.keyword_coverage",
+        "builtin.required_source",
+        "builtin.expected_tool",
+        "builtin.runtime_success",
+        "builtin.latency"
+      ]
+    }
+  ]
+}

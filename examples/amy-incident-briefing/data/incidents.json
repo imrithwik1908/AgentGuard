@@ -1,0 +1,50 @@
+[
+  {
+    "id": "incident-104",
+    "title": "Authentication refresh-token failures",
+    "date": "2026-08-12",
+    "severity": "SEV-2",
+    "owner": "Nia Brooks",
+    "body": "Expired signing keys caused refresh-token validation failures for mobile sessions. Nia Brooks coordinated the response. The immediate mitigation reloaded the active key set, and the permanent action is automated key-set freshness monitoring."
+  },
+  {
+    "id": "incident-108",
+    "title": "Duplicate webhook deliveries",
+    "date": "2026-08-21",
+    "severity": "SEV-3",
+    "owner": "Omar Haddad",
+    "body": "A worker timeout caused payment webhooks to be retried after successful delivery. Omar Haddad owns the follow-up. The team added idempotency-key enforcement and changed acknowledgement to occur after the delivery record commits."
+  },
+  {
+    "id": "incident-111",
+    "title": "Search results unavailable after index promotion",
+    "date": "2026-09-02",
+    "severity": "SEV-1",
+    "owner": "Amy Nguyen",
+    "body": "The production search alias pointed to an incomplete index after promotion. Amy Nguyen led mitigation by restoring the previous alias. The release checklist now requires document-count validation before alias switching."
+  },
+  {
+    "id": "review-2026-09-05",
+    "title": "Reliability review follow-up",
+    "date": "2026-09-05",
+    "severity": "REVIEW",
+    "owner": "Amy Nguyen",
+    "body": "The review prioritized search index validation over a planned cache rewrite. The team set September 19 as the deadline for the automated document-count release check."
+  },
+  {
+    "id": "incident-113",
+    "title": "Delayed analytics exports",
+    "date": "2026-09-07",
+    "severity": "SEV-3",
+    "owner": "Luis Moreno",
+    "body": "Analytics exports were delayed when a large customer job exhausted worker concurrency. Luis Moreno introduced per-workspace concurrency limits. No customer data was lost, and queued exports completed after capacity recovered."
+  },
+  {
+    "id": "incident-115",
+    "title": "Notification preference cache drift",
+    "date": "2026-09-11",
+    "severity": "SEV-3",
+    "owner": "Nia Brooks",
+    "body": "Some users received muted notifications because preference invalidation events were processed out of order. The mitigation rebuilt affected cache entries. The follow-up adds sequence-number validation to preference events."
+  }
+]

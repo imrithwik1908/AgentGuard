@@ -1,0 +1,58 @@
+[
+  {
+    "id": "design-sync-2026-09-08",
+    "title": "Design sync - dashboard handoff",
+    "date": "2026-09-08",
+    "participants": ["Maya Patel", "Bryan Chen", "Elena Rossi"],
+    "body": "The design team approved the new evaluation-results layout. Maya owns the final accessibility review. The design-to-engineering handoff is due September 26. The group kept the compact comparison view and removed the full-screen onboarding modal."
+  },
+  {
+    "id": "platform-planning-2026-09-09",
+    "title": "Platform planning - API migration",
+    "date": "2026-09-09",
+    "participants": ["Bryan Chen", "Noah Williams", "Priya Shah"],
+    "body": "Bryan Chen owns the API migration from the legacy events endpoint to the versioned ingestion endpoint. The compatibility shim remains enabled through October 14. Priya will review the migration checklist before rollout."
+  },
+  {
+    "id": "launch-readiness-2026-09-10",
+    "title": "Thursday launch readiness",
+    "date": "2026-09-10",
+    "participants": ["Maya Patel", "Noah Williams", "Sam Okafor"],
+    "body": "The main launch risk is delayed security approval for workspace API-key rotation. The team chose a staged release beginning with internal workspaces. Noah owns the rollback runbook, and the go-or-no-go review is September 29."
+  },
+  {
+    "id": "product-review-2026-09-07",
+    "title": "Monday product review",
+    "date": "2026-09-07",
+    "participants": ["Elena Rossi", "Maya Patel", "Sam Okafor"],
+    "body": "On Monday the team planned a single public launch for all workspaces on September 30. The release required the new comparison page and documentation, while API-key rotation was considered follow-up work."
+  },
+  {
+    "id": "security-review-2026-09-15",
+    "title": "Security review - credential lifecycle",
+    "date": "2026-09-15",
+    "participants": ["Priya Shah", "Bryan Chen", "Noah Williams"],
+    "body": "Security approved hashed storage for workspace API keys. The remaining action is an audit-log review on September 22. Raw API keys must only be shown once at creation and must never be written to application logs."
+  },
+  {
+    "id": "data-governance-2026-09-16",
+    "title": "Data governance - trace retention",
+    "date": "2026-09-16",
+    "participants": ["Priya Shah", "Elena Rossi"],
+    "body": "The team selected a 30-day default trace-retention period for the pilot. Projects may opt into a shorter period. Prompt and response redaction must happen before long-term analytics export."
+  },
+  {
+    "id": "localization-planning-2026-09-17",
+    "title": "Localization planning",
+    "date": "2026-09-17",
+    "participants": ["Elena Rossi", "Sam Okafor", "Maya Patel"],
+    "body": "Spanish documentation is in scope for the first follow-up release. The unresolved item is who will review technical terminology. Sam will identify a reviewer by September 24."
+  },
+  {
+    "id": "reliability-review-2026-09-18",
+    "title": "Reliability review - worker capacity",
+    "date": "2026-09-18",
+    "participants": ["Noah Williams", "Bryan Chen"],
+    "body": "Evaluation workers will start with a concurrency limit of four jobs. The team will alert when queue wait time exceeds two minutes. This meeting did not change the public launch date."
+  }
+]

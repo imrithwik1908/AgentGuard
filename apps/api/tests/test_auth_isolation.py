@@ -148,6 +148,33 @@ async def _create_project_stack(
 
 
 @pytest.mark.anyio
+async def test_project_slugs_are_unique_within_each_workspace(auth_client):
+    user_a = await _register(auth_client, "SlugA")
+    user_b = await _register(auth_client, "SlugB")
+    shared_slug = f"shared-project-{uuid.uuid4().hex[:8]}"
+
+    project_a = await auth_client.post(
+        "/api/v1/projects",
+        headers=_bearer(user_a),
+        json={"name": "Workspace A Project", "slug": shared_slug},
+    )
+    project_b = await auth_client.post(
+        "/api/v1/projects",
+        headers=_bearer(user_b),
+        json={"name": "Workspace B Project", "slug": shared_slug},
+    )
+    duplicate_in_a = await auth_client.post(
+        "/api/v1/projects",
+        headers=_bearer(user_a),
+        json={"name": "Duplicate Project", "slug": shared_slug},
+    )
+
+    assert project_a.status_code == 201, project_a.text
+    assert project_b.status_code == 201, project_b.text
+    assert duplicate_in_a.status_code == 409, duplicate_in_a.text
+
+
+@pytest.mark.anyio
 async def test_auth_lifecycle_and_cross_tenant_api_isolation(auth_client):
     unauthenticated = await auth_client.get("/api/v1/projects")
     assert unauthenticated.status_code == 401
