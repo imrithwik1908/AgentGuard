@@ -1,0 +1,72 @@
+[
+  {
+    "id": "access-control-2026",
+    "title": "Approved Access Control Standard",
+    "status": "current",
+    "control_ids": ["IAM-04"],
+    "body": "Workforce access requires SAML single sign-on and phishing-resistant MFA. Managers and system owners complete access reviews quarterly. Human Resources termination events disable user access within four hours. Privileged production access requires a separate approval and expires after eight hours."
+  },
+  {
+    "id": "incident-response-2026",
+    "title": "Customer Incident Notification Procedure",
+    "status": "current",
+    "control_ids": ["IR-02"],
+    "body": "Security Operations leads confirmed security incidents. Affected customers receive an initial notification within 24 hours after a breach is confirmed. Material updates are provided every 24 hours until containment, followed by a written incident report within five business days."
+  },
+  {
+    "id": "data-lifecycle-2026",
+    "title": "Production Data Retention and Deletion Standard",
+    "status": "current",
+    "control_ids": ["DP-07"],
+    "body": "Application logs are retained for 30 days and encrypted backups for 90 days. Verified customer deletion requests are completed within 30 calendar days, including deletion from active systems. Backup copies expire through the normal 90-day rotation and are not restored except for disaster recovery."
+  },
+  {
+    "id": "encryption-architecture-2026",
+    "title": "Encryption Architecture",
+    "status": "current",
+    "control_ids": ["CR-03"],
+    "body": "Customer data is encrypted at rest with AES-256 and in transit with TLS 1.3. Production keys are held in AWS KMS, separated by environment, and rotated automatically every 365 days. Database snapshots use the same KMS control boundary."
+  },
+  {
+    "id": "continuity-plan-2026",
+    "title": "Business Continuity and Disaster Recovery Plan",
+    "status": "current",
+    "control_ids": ["BC-05"],
+    "body": "The production service has a recovery time objective of four hours and a recovery point objective of one hour. Disaster recovery exercises run annually. The June 2026 exercise restored the primary service in two hours and forty minutes with 22 minutes of data exposure."
+  },
+  {
+    "id": "subprocessor-policy-2026",
+    "title": "Subprocessor Governance Policy",
+    "status": "current",
+    "control_ids": ["TPRM-06"],
+    "body": "The public subprocessor register is reviewed monthly. Customers receive at least 30 days advance notice before a new subprocessor begins processing customer data. Every subprocessor must sign a data processing agreement and complete a security review before production access."
+  },
+  {
+    "id": "soc2-audit-2026",
+    "title": "2026 SOC 2 Type II Audit Summary",
+    "status": "current",
+    "control_ids": ["AUD-09", "IAM-04"],
+    "body": "The independent SOC 2 Type II examination covered January through June 2026 and issued an unqualified opinion. One medium observation found that two legacy service accounts had not followed the 365-day key rotation standard. Governance, Risk and Compliance owns remediation due December 15, 2026."
+  },
+  {
+    "id": "archived-retention-2024",
+    "title": "Archived Data Retention Guideline",
+    "status": "archived",
+    "control_ids": ["DP-07"],
+    "body": "This superseded 2024 guideline retained application logs for 180 days, backups for one year, and allowed 60 days for deletion requests. It was replaced by data-lifecycle-2026 and must not be used for current commitments."
+  },
+  {
+    "id": "archived-incident-plan-2023",
+    "title": "Archived Incident Communications Plan",
+    "status": "archived",
+    "control_ids": ["IR-02"],
+    "body": "The retired plan targeted customer notification within 72 hours and a final report within ten business days. It was superseded by incident-response-2026."
+  },
+  {
+    "id": "sales-security-faq",
+    "title": "Sales Security FAQ Draft",
+    "status": "draft",
+    "control_ids": ["CR-03", "BC-05"],
+    "body": "A sales draft describes bank-grade encryption and near-instant recovery but does not define algorithms, key rotation, RTO, or RPO. Reviewers must rely on approved technical standards for contractual answers."
+  }
+]

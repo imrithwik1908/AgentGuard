@@ -1,0 +1,44 @@
+[
+  {
+    "control_id": "IAM-04",
+    "owner": "Identity Engineering",
+    "status": "effective",
+    "next_review": "2026-11-15"
+  },
+  {
+    "control_id": "IR-02",
+    "owner": "Security Operations",
+    "status": "effective",
+    "next_review": "2026-12-01"
+  },
+  {
+    "control_id": "DP-07",
+    "owner": "Privacy Engineering",
+    "status": "effective",
+    "next_review": "2027-01-10"
+  },
+  {
+    "control_id": "CR-03",
+    "owner": "Cloud Platform",
+    "status": "effective",
+    "next_review": "2026-10-30"
+  },
+  {
+    "control_id": "BC-05",
+    "owner": "Site Reliability Engineering",
+    "status": "effective",
+    "next_review": "2026-12-20"
+  },
+  {
+    "control_id": "TPRM-06",
+    "owner": "Vendor Risk",
+    "status": "effective",
+    "next_review": "2027-02-01"
+  },
+  {
+    "control_id": "AUD-09",
+    "owner": "Governance Risk and Compliance",
+    "status": "remediation-open",
+    "next_review": "2026-12-15"
+  }
+]

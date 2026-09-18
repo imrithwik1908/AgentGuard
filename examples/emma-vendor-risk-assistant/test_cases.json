@@ -1,0 +1,89 @@
+{
+  "name": "Vendor Security Review Regression Suite",
+  "slug": "vendor-security-review-regression-suite",
+  "description": "Checks evidence-backed answers about access, incidents, privacy, encryption, resilience, subprocessors, and audit findings.",
+  "metadata": {"domain": "vendor-security", "owner": "Emma walkthrough"},
+  "cases": [
+    {
+      "name": "mfa-and-termination-sla",
+      "input": {"question": "What authentication is required, and how quickly is access removed after termination?"},
+      "expectations": {
+        "answer_requirement": "phishing-resistant MFA, four hours",
+        "required_sources": ["access-control-2026"],
+        "expected_tool": "lookup_control_owner"
+      },
+      "evaluators": ["builtin.keyword_coverage", "builtin.required_source", "builtin.expected_tool", "builtin.runtime_success"]
+    },
+    {
+      "name": "breach-notification-timeline",
+      "input": {"question": "When are customers notified after a confirmed breach, and when is the written report due?"},
+      "expectations": {
+        "answer_requirement": "24 hours, five business days",
+        "required_sources": ["incident-response-2026"],
+        "expected_tool": "lookup_control_owner"
+      },
+      "evaluators": ["builtin.keyword_coverage", "builtin.required_source", "builtin.expected_tool", "builtin.runtime_success"]
+    },
+    {
+      "name": "deletion-and-backup-retention",
+      "input": {"question": "How long does customer deletion take, and what happens to backup copies?"},
+      "expectations": {
+        "answer_requirement": "30 calendar days, 90-day rotation",
+        "required_sources": ["data-lifecycle-2026"],
+        "expected_tool": "lookup_control_owner"
+      },
+      "evaluators": ["builtin.keyword_coverage", "builtin.required_source", "builtin.expected_tool", "builtin.runtime_success"]
+    },
+    {
+      "name": "encryption-and-key-rotation",
+      "input": {"question": "Which encryption standards protect customer data, and how often are production keys rotated?"},
+      "expectations": {
+        "answer_requirement": "AES-256, TLS 1.3, 365 days",
+        "required_sources": ["encryption-architecture-2026"],
+        "expected_tool": "lookup_control_owner"
+      },
+      "evaluators": ["builtin.keyword_coverage", "builtin.required_source", "builtin.expected_tool", "builtin.runtime_success"]
+    },
+    {
+      "name": "recovery-objectives",
+      "input": {"question": "What are the committed recovery time and recovery point objectives?"},
+      "expectations": {
+        "answer_requirement": "four hours, one hour",
+        "required_sources": ["continuity-plan-2026"],
+        "expected_tool": "lookup_control_owner"
+      },
+      "evaluators": ["builtin.keyword_coverage", "builtin.required_source", "builtin.expected_tool", "builtin.runtime_success"]
+    },
+    {
+      "name": "new-subprocessor-notice",
+      "input": {"question": "What must happen before a new subprocessor handles customer data?"},
+      "expectations": {
+        "answer_requirement": "30 days advance notice, data processing agreement, security review",
+        "required_sources": ["subprocessor-policy-2026"],
+        "expected_tool": "lookup_control_owner"
+      },
+      "evaluators": ["builtin.keyword_coverage", "builtin.required_source", "builtin.expected_tool", "builtin.runtime_success"]
+    },
+    {
+      "name": "soc2-observation-and-owner",
+      "input": {"question": "What open issue did the latest SOC 2 audit identify, who owns it, and when is it due?"},
+      "expectations": {
+        "answer_requirement": "legacy service accounts, Governance Risk and Compliance, December 15 2026",
+        "required_sources": ["soc2-audit-2026"],
+        "expected_tool": "lookup_control_owner"
+      },
+      "evaluators": ["builtin.keyword_coverage", "builtin.required_source", "builtin.expected_tool", "builtin.runtime_success"]
+    },
+    {
+      "name": "current-versus-archived-retention",
+      "input": {"question": "An old questionnaire says logs are kept for 180 days. What is the current approved retention period?"},
+      "expectations": {
+        "answer_requirement": "30 days, archived 2024 guideline was superseded",
+        "required_sources": ["data-lifecycle-2026", "archived-retention-2024"],
+        "expected_tool": "lookup_control_owner",
+        "latency_budget_ms": 30000
+      },
+      "evaluators": ["builtin.keyword_coverage", "builtin.required_source", "builtin.expected_tool", "builtin.runtime_success", "builtin.latency"]
+    }
+  ]
+}
