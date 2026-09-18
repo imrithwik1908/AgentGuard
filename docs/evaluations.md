@@ -1,94 +1,80 @@
 # Evaluations
 
-Evaluations are the evidence behind AgentGuard release decisions.
+An evaluator is a versioned check that turns stored run evidence into a score, pass/fail result, and
+explanation. Users define expected behavior; AgentGuard executes the checks.
 
-An evaluator is a check that measures whether a run behaved as expected.
+## Built-In Registry
 
-## Current Evaluators
+| Evaluator | Category | Method | Required evidence |
+| --- | --- | --- | --- |
+| `builtin.exact_answer` | Answer quality | Deterministic behavioral | Expected answer and generated answer |
+| `builtin.required_content` | Answer quality | Deterministic behavioral | Required text and generated answer |
+| `builtin.structured_output` | Answer quality | Deterministic behavioral | JSON Schema and output |
+| `builtin.keyword_coverage` | Answer quality | Deterministic behavioral | Required keywords and output |
+| `builtin.required_source` | Retrieval | Deterministic retrieval | Required source IDs and retrieval steps |
+| `builtin.expected_tool` | Agent behavior | Deterministic behavioral | Expected tool and tool steps |
+| `builtin.forbidden_tool` | Agent behavior | Deterministic behavioral | Forbidden tools and tool steps |
+| `builtin.runtime_success` | Operational | Deterministic operational | Trace status |
+| `builtin.latency` | Operational | Deterministic operational | Trace duration and budget |
+| `builtin.semantic_correctness` | Answer quality | LLM judge | Question, expectation, answer, evidence |
+| `builtin.groundedness` | Answer quality | LLM judge | Answer and retrieved evidence |
+| `builtin.retrieval_relevance` | Retrieval | LLM judge | Question and retrieved evidence |
+| `builtin.tool_selection` | Agent behavior | LLM judge | Called/expected/forbidden tools |
 
-### Answer Quality
+Trace-health checks are operational/instrumentation evidence. They are never labeled as answer
+quality.
 
-Current deterministic checks:
+## Provenance
 
-- Expected content: checks whether the answer contains required text.
-- Exact answer match: checks whether the answer exactly matches the expected answer.
-- Keyword coverage: scores whether required keywords appear in the answer.
+Every result stores evaluator name/version, method, rubric/config, judge model when applicable,
+threshold, score, pass/fail, explanation, metadata/evidence, and timestamp. AI metadata additionally
+stores judge provider, rubric version, and prompt-template version.
 
-These checks are limited but legitimate. They are useful for deterministic regression tests and smoke checks.
+The fixed v1 AI threshold is `0.80`. Judge output is validated as structured JSON, including that
+the returned pass flag agrees with the score threshold.
 
-### Operational
+## Provider Modes
 
-Current operational checks:
+- `disabled`: deterministic evaluators only.
+- `ollama`: local OpenAI-compatible Ollama endpoint; no API key required.
+- `openai-compatible`: external compatible endpoint; API key required.
 
-- Runtime success: whether the run completed without error.
-- Nested step errors: whether internal steps captured exceptions or error statuses.
-- Latency budget: whether the run stayed inside a deterministic latency budget.
-- Debug evidence: whether the run contains enough input/output/error data to investigate.
+If the judge is unavailable, the affected job case records a structured error and retries up to its
+configured limit. Other cases and deterministic jobs continue. Missing evaluator evidence prevents
+an automatic `PASS` when that evaluator is required by release policy.
 
-Operational checks are not the same as answer-quality checks. A run can be operationally healthy and still produce a bad answer.
+## Comparison Semantics
 
-## Planned Evaluators
+The comparison unit is one terminal evaluation execution/job + test case + evaluator + version.
+For each dataset/version/evaluator, AgentGuard selects the latest terminal job and follows its
+explicit job-case-to-result relationship. Direct legacy results use the latest timestamp only when
+no job-scoped evidence exists.
 
-These should not be presented as active until implemented.
+- `PASS -> FAIL`: `REGRESSED`
+- `FAIL -> PASS`: `IMPROVED`
+- equivalent deterministic `FAIL -> FAIL`: `UNCHANGED`
+- meaningful graded score decrease: `REGRESSED`
+- score movement inside configured tolerance: `UNCHANGED`
+- missing side: `NOT_COMPARABLE`
 
-### Semantic Correctness
+Comparison coverage is `comparable paired checks / total relevant paired checks`.
 
-Checks whether the answer means the same thing as the expected answer.
+## Failure Analysis
 
-### Groundedness
+V1 groups failures deterministically by evaluator and observed stage. The stored summary separates
+observation from hypotheses and includes a causality disclaimer. The optional structured judge
+adapter can produce conservative failure-analysis summaries, but it cannot modify evaluator rows or
+release policy.
 
-Checks whether the answer is supported by retrieved evidence.
+Semantic embedding clustering is future work.
 
-### Retrieval Relevance
+## Release Policy
 
-Checks whether retrieved context was useful for answering the question.
+The policy engine is deterministic. Inputs include maximum regressions, minimum pass rate, allowed
+score drop, minimum coverage, required evaluator names, runtime failures, and critical test cases.
 
-### Retrieval Coverage
+- `PASS`: evidence is complete and all thresholds pass.
+- `BLOCK`: one or more configured blockers are present.
+- `REVIEW`: evidence is incomplete without a confirmed blocker.
 
-Checks whether required sources or documents were retrieved.
-
-### Tool Selection
-
-Checks whether an agent chose the expected tool or action.
-
-### Instruction Following
-
-Checks whether the AI application followed system, developer, and task instructions.
-
-### Structured Output Correctness
-
-Checks whether JSON, schemas, or tool arguments match the expected structure.
-
-## Regression Classification
-
-AgentGuard should compare the same behavioral test case across baseline and candidate.
-
-It should not treat missing one-sided evidence as a regression.
-
-Classification:
-
-- Regressed: candidate failed or scored meaningfully worse.
-- Improved: candidate passed or scored meaningfully better.
-- Unchanged: no meaningful behavioral difference.
-- Not comparable: missing baseline or candidate evidence.
-
-## Release Decisions
-
-Release decisions should be strict and understandable:
-
-- Safe to ship: no paired regressions detected.
-- Block: regressions detected: at least one paired behavioral case got worse.
-- Block: runtime failures: candidate failed while running.
-- Not enough evidence to decide: comparable evidence is missing.
-- Not evaluated yet: no candidate evaluation evidence exists.
-
-## Evidence Over Claims
-
-AgentGuard should distinguish:
-
-- observed change;
-- correlated behavioral difference;
-- likely explanation;
-- confirmed evidence.
-
-Do not claim causation unless a specific analysis provides causal evidence.
+Reasons are returned with every decision so CI and the UI can explain the result.

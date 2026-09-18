@@ -13,9 +13,8 @@ export function ProductStatus() {
           </h2>
           <p className="mt-3 text-sm leading-6 text-slate-600">
             This build records complete executions from the Python SDK, stores each nested step in
-            PostgreSQL, runs deterministic checks from test suites, compares versions, and produces
-            release decisions. Richer semantic, retrieval, and tool-behavior evaluators are designed
-            as future additions rather than shown as if they already exist.
+            PostgreSQL, runs deterministic checks and optional rubric-based AI judges, compares
+            versions, explains stored evidence, and produces auditable release decisions.
           </p>
         </div>
         <div className="min-w-[22rem] space-y-2 text-sm">

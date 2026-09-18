@@ -31,3 +31,8 @@ class ConflictError(AgentGuardError):
 class ValidationError(AgentGuardError):
     status_code = 422
     code = "validation_error"
+
+
+class JudgeUnavailableError(AgentGuardError):
+    status_code = 503
+    code = "judge_unavailable"

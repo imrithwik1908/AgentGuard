@@ -65,4 +65,3 @@ class TraceList(BaseModel):
     limit: int
     offset: int
     total: int
-

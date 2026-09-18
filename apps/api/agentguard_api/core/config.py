@@ -12,9 +12,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    database_url: str = (
-        "postgresql+asyncpg://agentguard:agentguard@localhost:5432/agentguard"
-    )
+    database_url: str = "postgresql+asyncpg://agentguard:agentguard@localhost:5432/agentguard"
 
     api_host: str = "0.0.0.0"
     api_port: int = 8000
@@ -33,6 +31,7 @@ class Settings(BaseSettings):
     )
 
     # LLM-as-a-judge
+    judge_provider: Literal["disabled", "ollama", "openai-compatible"] = "disabled"
     judge_base_url: str = "https://api.openai.com/v1"
     judge_api_key: str | None = None
     judge_model: str = "gpt-4o-mini"
@@ -58,7 +57,7 @@ class Settings(BaseSettings):
     evaluation_job_timeout_seconds: int = Field(default=300, ge=10, le=3600)
     evaluation_worker_concurrency: int = Field(default=4, ge=1, le=64)
 
-    # Local fallback worker
+    # Single-process worker for local or zero-cost preview deployments.
     embedded_worker_enabled: bool = False
     worker_poll_seconds: float = Field(default=1.0, ge=0.1, le=30.0)
     worker_stale_seconds: int = Field(default=300, ge=30, le=3600)
@@ -67,7 +66,7 @@ class Settings(BaseSettings):
     deterministic_score_tolerance: float = Field(default=0.05, ge=0, le=1)
     llm_judge_score_tolerance: float = Field(default=0.05, ge=0, le=1)
 
-    # Never expose the demo-seed endpoint on the hosted product by default.
+    # Authenticated demo data is opt-in for each deployment.
     demo_seed_enabled: bool = False
 
     @model_validator(mode="after")
@@ -86,13 +85,19 @@ class Settings(BaseSettings):
             )
         return self
 
+    @property
+    def judge_enabled(self) -> bool:
+        if self.judge_provider == "ollama":
+            return True
+        if self.judge_provider == "openai-compatible":
+            return bool(self.judge_api_key)
+        return False
+
     def validate_production_safety(self) -> None:
         if self.environment != "production":
             return
         if not self.auth_required:
-            raise RuntimeError(
-                "AGENTGUARD_AUTH_REQUIRED=true is required in production"
-            )
+            raise RuntimeError("AGENTGUARD_AUTH_REQUIRED=true is required in production")
         if self.evaluation_queue_backend != "redis":
             raise RuntimeError(
                 "AGENTGUARD_EVALUATION_QUEUE_BACKEND=redis is required in production"

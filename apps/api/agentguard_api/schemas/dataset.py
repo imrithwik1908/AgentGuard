@@ -13,34 +13,30 @@ class DatasetCaseCreate(BaseModel):
     input: dict[str, Any]
     expected_output: Any | None = None
     expected_substring: str | None = None
+    expectations: dict[str, Any] = Field(default_factory=dict)
+    evaluators: list[str] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def require_expectation(self):
-        has_answer_expectation = (
-            self.expected_output is not None
-            or bool(self.expected_substring)
-        )
+        has_answer_expectation = self.expected_output is not None or bool(self.expected_substring)
 
         has_behavior_expectation = any(
             [
                 self.metadata.get("semantic_requirement"),
                 self.metadata.get("expected_document_ids"),
+                self.metadata.get("required_sources"),
                 self.metadata.get("expected_tools"),
+                self.metadata.get("expected_tool"),
                 self.metadata.get("forbidden_tools"),
+                self.metadata.get("json_schema"),
+                self.expectations,
             ]
         )
 
-        if (
-            not has_answer_expectation
-            and not has_behavior_expectation
-        ):
+        if not has_answer_expectation and not has_behavior_expectation:
             raise ValueError(
-                
-                    "test case requires at least one "
-                    "answer, retrieval, or agent-behavior "
-                    "expectation"
-                
+                "test case requires at least one answer, retrieval, or agent-behavior expectation"
             )
 
         return self

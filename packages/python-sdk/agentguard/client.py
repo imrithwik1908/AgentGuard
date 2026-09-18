@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import contextvars
+import functools
+import inspect
 import json
 import logging
 import traceback
@@ -144,6 +146,38 @@ class TraceContext:
             metadata=metadata or {},
             attributes=attributes or {},
         )
+
+    def llm_call(
+        self,
+        name: str = "llm.call",
+        *,
+        provider: str | None = None,
+        model: str | None = None,
+        input: Any | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> SpanContext:
+        span = self.span(name, type="LLM", input=input, metadata=metadata)
+        span.provider = provider
+        span.model_name = model
+        return span
+
+    def retrieval(
+        self,
+        name: str = "retrieval",
+        *,
+        query: Any | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> SpanContext:
+        return self.span(name, type="RETRIEVER", input=query, metadata=metadata)
+
+    def tool(
+        self,
+        name: str,
+        *,
+        arguments: Any | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> SpanContext:
+        return self.span(name, type="TOOL", input=arguments, metadata=metadata)
 
     def set_output(self, output: Any) -> None:
         self.output = output
@@ -336,6 +370,106 @@ class AgentGuard:
             metadata=metadata or {},
             external_trace_id=external_trace_id or str(uuid.uuid4()),
         )
+
+    def current_trace(self) -> TraceContext | None:
+        return _current_trace.get()
+
+    def trace_run(
+        self,
+        name: str | None = None,
+        *,
+        input_arg: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        external_trace_id_arg: str | None = None,
+    ):
+        def decorator(func):
+            if inspect.iscoroutinefunction(func):
+
+                @functools.wraps(func)
+                async def async_wrapper(*args, **kwargs):
+                    trace_input = (
+                        kwargs.get(input_arg) if input_arg else (args[0] if args else None)
+                    )
+                    external_trace_id = (
+                        str(kwargs.get(external_trace_id_arg))
+                        if external_trace_id_arg and kwargs.get(external_trace_id_arg) is not None
+                        else None
+                    )
+                    with self.trace(
+                        name or func.__name__,
+                        input=trace_input,
+                        metadata=metadata,
+                        external_trace_id=external_trace_id,
+                    ) as trace:
+                        output = await func(*args, **kwargs)
+                        trace.set_output(output)
+                        return output
+
+                return async_wrapper
+
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):
+                trace_input = None
+                if input_arg:
+                    trace_input = kwargs.get(input_arg)
+                elif args:
+                    trace_input = args[0]
+                external_trace_id = (
+                    str(kwargs.get(external_trace_id_arg))
+                    if external_trace_id_arg and kwargs.get(external_trace_id_arg) is not None
+                    else None
+                )
+                with self.trace(
+                    name or func.__name__,
+                    input=trace_input,
+                    metadata=metadata,
+                    external_trace_id=external_trace_id,
+                ) as trace:
+                    output = func(*args, **kwargs)
+                    trace.set_output(output)
+                    return output
+
+            return wrapper
+
+        return decorator
+
+    def llm_call(
+        self,
+        name: str = "llm.call",
+        *,
+        provider: str | None = None,
+        model: str | None = None,
+        input: Any | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> SpanContext:
+        trace = _current_trace.get()
+        if trace is None:
+            raise RuntimeError("llm_call must be used inside an AgentGuard trace")
+        return trace.llm_call(name, provider=provider, model=model, input=input, metadata=metadata)
+
+    def retrieval(
+        self,
+        name: str = "retrieval",
+        *,
+        query: Any | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> SpanContext:
+        trace = _current_trace.get()
+        if trace is None:
+            raise RuntimeError("retrieval must be used inside an AgentGuard trace")
+        return trace.retrieval(name, query=query, metadata=metadata)
+
+    def tool(
+        self,
+        name: str,
+        *,
+        arguments: Any | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> SpanContext:
+        trace = _current_trace.get()
+        if trace is None:
+            raise RuntimeError("tool must be used inside an AgentGuard trace")
+        return trace.tool(name, arguments=arguments, metadata=metadata)
 
     def _submit_trace(self, trace: TraceContext) -> None:
         payload = json.dumps(trace.to_payload(), default=_json_default).encode("utf-8")

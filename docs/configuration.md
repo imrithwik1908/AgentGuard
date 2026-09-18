@@ -94,15 +94,31 @@ Docker example:
 AGENTGUARD_API_URL=http://api:8000
 ```
 
-### `NEXT_PUBLIC_AGENTGUARD_API_URL`
+The API URL remains server-side. Do not place database, SDK, provider, or judge secrets in
+`NEXT_PUBLIC_*` variables.
 
-Browser-visible fallback API URL.
-
-Local example:
+## Evaluation Worker
 
 ```bash
-NEXT_PUBLIC_AGENTGUARD_API_URL=http://127.0.0.1:8000
+AGENTGUARD_EVALUATION_QUEUE_BACKEND=redis
+AGENTGUARD_REDIS_URL=redis://localhost:6379/0
+AGENTGUARD_EVALUATION_JOB_TIMEOUT_SECONDS=300
+AGENTGUARD_EVALUATION_WORKER_CONCURRENCY=4
 ```
+
+Production requires the Redis queue backend. Local tests may use `inline`.
+
+## Judge Provider
+
+```bash
+AGENTGUARD_JUDGE_PROVIDER=disabled
+AGENTGUARD_JUDGE_BASE_URL=https://api.openai.com/v1
+AGENTGUARD_JUDGE_MODEL=gpt-4o-mini
+AGENTGUARD_JUDGE_API_KEY=
+```
+
+Provider values are `disabled`, `ollama`, and `openai-compatible`. Ollama does not require an API
+key. In Docker, use `http://host.docker.internal:11434` for a judge running on macOS.
 
 ## SDK Configuration
 
@@ -170,5 +186,7 @@ docker compose up --build
 Docker services:
 
 - `postgres`
+- `redis`
 - `api`
+- `worker`
 - `web`

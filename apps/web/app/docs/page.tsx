@@ -2,33 +2,35 @@ import Link from "next/link";
 
 const install = `python -m pip install "agentguard-reliability @ git+https://github.com/imrithwik1908/AgentGuard.git#subdirectory=packages/python-sdk"`;
 
-const sdkExample = `from decimal import Decimal
-from agentguard import AgentGuard
+const sdkExample = `import os
 
-client = AgentGuard(
+from agentguard import AgentGuard
+from agentguard.integrations.openai import instrument_openai
+from openai import OpenAI
+
+ag = AgentGuard(
     base_url="https://your-agentguard-api.example.com",
     project="support-agent",
     version="candidate-v2",
+    api_key=os.environ["AGENTGUARD_API_KEY"],
 )
 
-with client.trace("answer-question", input={"question": question}) as trace:
-    with trace.span("retrieve context", type="RETRIEVER", input={"question": question}) as span:
+llm = instrument_openai(OpenAI(), agentguard=ag)
+
+@ag.trace_run("answer-question", input_arg="question")
+def answer(question: str) -> str:
+    with ag.retrieval("retrieve-policy", query={"question": question}) as span:
         docs = retrieve(question)
-        span.set_output({"documents": docs})
-        span.set_attributes(top_k=len(docs))
+        span.set_output({"documents": [{"id": doc.id, "score": doc.score} for doc in docs]})
 
-    with trace.span("generate answer", type="LLM", input={"question": question}) as span:
-        answer = generate(question, docs)
-        span.set_attributes(
-            provider="openai",
-            model_name="gpt-4o-mini",
-            input_tokens=120,
-            output_tokens=45,
-            estimated_cost=Decimal("0.0002"),
-        )
-        span.set_output({"answer": answer})
-
-    trace.set_output({"answer": answer})`;
+    response = llm.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "Answer only from the supplied policy context."},
+            {"role": "user", "content": question},
+        ],
+    )
+    return response.choices[0].message.content`;
 
 const publish = `cd packages/python-sdk
 rm -rf dist build *.egg-info
@@ -118,15 +120,17 @@ export default function DocsPage() {
             id="sdk"
             eyebrow="SDK reference"
             title="Python instrumentation"
-            body="The SDK is intentionally small: create a client, open a trace for one run, add spans for important internal steps, and set outputs/metadata."
+            body="Start with the run decorator and provider integration. Add retrieval or tool helpers where AgentGuard needs evidence, and use manual trace/span contexts only for custom operations."
           >
             <ReferenceGrid
               items={[
                 ["AgentGuard(...)", "Creates a client bound to one project and version."],
-                ["client.trace(...)", "Records one complete AI application execution."],
-                ["trace.span(...)", "Records one internal step such as retrieval, LLM call, or tool call."],
+                ["@ag.trace_run(...)", "Automatically records one complete synchronous or async application execution."],
+                ["instrument_openai(...)", "Automatically records OpenAI-compatible chat completion calls, models, timing, errors, and token usage."],
+                ["ag.retrieval(...)", "Records retrieved document IDs, scores, and related evidence."],
+                ["ag.tool(...)", "Records tool names, arguments, outputs, timing, and exceptions."],
+                ["ag.trace(...) / trace.span(...)", "Low-level contexts for operations not covered by a helper."],
                 ["span.set_output(...)", "Stores step output for later investigation."],
-                ["span.set_attributes(...)", "Stores provider, model, token, cost, and custom metadata."],
                 ["raise_on_failure", "Defaults false so telemetry problems do not crash user apps."]
               ]}
             />

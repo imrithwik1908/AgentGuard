@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -97,12 +97,26 @@ class CaseComparison(BaseModel):
     evaluator_name: str
     baseline_evaluation_id: UUID | None
     candidate_evaluation_id: UUID | None
+    baseline_evaluation_job_id: UUID | None = None
+    candidate_evaluation_job_id: UUID | None = None
+    baseline_evaluation_job_case_id: UUID | None = None
+    candidate_evaluation_job_case_id: UUID | None = None
     baseline_score: Decimal | None
     candidate_score: Decimal | None
     baseline_status: EvaluationStatus | None
     candidate_status: EvaluationStatus | None
     classification: str
     explanation: str
+    failure_analysis: dict[str, Any] | None = None
+
+
+class FailureCluster(BaseModel):
+    label: str
+    summary: str
+    likely_failure_stage: str
+    case_count: int
+    evaluator_names: list[str]
+    dataset_case_ids: list[UUID | None]
 
 
 class PairedVersionComparison(VersionComparison):
@@ -110,6 +124,10 @@ class PairedVersionComparison(VersionComparison):
     improved: list[CaseComparison]
     unchanged: list[CaseComparison]
     not_comparable: list[CaseComparison]
+    failure_clusters: list[FailureCluster] = []
+    comparable_case_count: int = 0
+    total_case_count: int = 0
+    comparison_coverage: Decimal | None = None
 
 
 class ReleaseDecision(BaseModel):
@@ -123,12 +141,26 @@ class ReleaseDecision(BaseModel):
     minimum_pass_rate: Decimal
     maximum_regressions: int
     allowed_score_drop: Decimal
+    minimum_evaluation_coverage: Decimal = Decimal("1.0000")
+    required_evaluator_names: list[str] = Field(default_factory=list)
+    comparison_coverage: Decimal = Decimal("0.0000")
+    runtime_failure_count: int = 0
+    critical_regression_count: int = 0
 
 
 class EvaluationJobCreate(BaseModel):
     dataset_id: UUID
     application_version_id: UUID
     evaluator_name: str = Field(default="builtin.answer_contains", max_length=160)
+    request_id: str | None = Field(default=None, max_length=120)
+    max_attempts: int = Field(default=2, ge=1, le=5)
+
+
+class EvaluationOrchestrationRequest(BaseModel):
+    dataset_id: UUID
+    baseline_version_id: UUID
+    candidate_version_id: UUID
+    evaluator_names: list[str] | None = None
     request_id: str | None = Field(default=None, max_length=120)
     max_attempts: int = Field(default=2, ge=1, le=5)
 
@@ -169,3 +201,14 @@ class EvaluationJobRead(BaseModel):
     started_at: datetime | None
     finished_at: datetime | None
     cases: list[EvaluationJobCaseRead] = []
+
+
+class EvaluationOrchestrationResponse(BaseModel):
+    status: Literal["QUEUED", "COMPLETED"]
+    dataset_id: UUID
+    baseline_version_id: UUID
+    candidate_version_id: UUID
+    evaluator_names: list[str]
+    jobs: list[EvaluationJobRead]
+    comparison: PairedVersionComparison | None = None
+    release_decision: ReleaseDecision | None = None

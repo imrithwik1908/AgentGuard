@@ -15,50 +15,37 @@ from agentguard_api.api.projects import router as projects_router
 from agentguard_api.api.security import router as security_router
 from agentguard_api.api.traces import router as traces_router
 from agentguard_api.core.config import get_settings
-from agentguard_api.db.session import AsyncSessionLocal
 from agentguard_api.schemas.common import ApiError
 from agentguard_api.services.errors import AgentGuardError
-from agentguard_api.services.evaluation_jobs import (
-    claim_next_evaluation_job,
-    process_evaluation_job,
-    recover_stale_evaluation_jobs,
-)
+from agentguard_api.services.evaluation_jobs import redis_settings_from_url
+from agentguard_api.worker import process_evaluation_job_arq
 
 logger = logging.getLogger("agentguard.api")
 
 
 async def run_embedded_worker() -> None:
+    from arq.worker import Worker
+
     settings = get_settings()
     logger.info("AgentGuard embedded evaluation worker started")
 
     while True:
+        worker = Worker(
+            functions=[process_evaluation_job_arq],
+            redis_settings=redis_settings_from_url(settings.redis_url),
+            handle_signals=False,
+            max_jobs=settings.evaluation_worker_concurrency,
+            job_timeout=settings.evaluation_job_timeout_seconds,
+        )
         try:
-            async with AsyncSessionLocal() as session:
-                await recover_stale_evaluation_jobs(
-                    session,
-                    stale_after_seconds=settings.worker_stale_seconds,
-                )
-
-            async with AsyncSessionLocal() as session:
-                claimed = await claim_next_evaluation_job(session)
-
-            if claimed is None:
-                await asyncio.sleep(settings.worker_poll_seconds)
-                continue
-
-            job_id, workspace_id = claimed
-            logger.info("Embedded worker processing evaluation job %s", job_id)
-            await process_evaluation_job(
-                job_id,
-                settings=settings,
-                workspace_id=workspace_id,
-            )
-
+            await worker.async_run()
         except asyncio.CancelledError:
             raise
         except Exception:
             logger.exception("Embedded evaluation worker loop failure")
             await asyncio.sleep(settings.worker_poll_seconds)
+        finally:
+            await worker.close()
 
 
 def create_app() -> FastAPI:

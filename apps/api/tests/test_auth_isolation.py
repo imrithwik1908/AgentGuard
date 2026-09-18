@@ -30,6 +30,7 @@ async def auth_client(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_DATABASE_URL", os.environ["AGENTGUARD_TEST_DATABASE_URL"])
     monkeypatch.setenv("AGENTGUARD_AUTH_REQUIRED", "true")
     monkeypatch.setenv("AGENTGUARD_ACCESS_TOKEN_MINUTES", "60")
+    monkeypatch.setenv("AGENTGUARD_DEMO_SEED_ENABLED", "true")
     get_settings.cache_clear()
 
     from agentguard_api.db import session as db_session
@@ -345,11 +346,83 @@ async def test_auth_lifecycle_and_cross_tenant_api_isolation(auth_client):
     engine = create_async_engine(os.environ["AGENTGUARD_TEST_DATABASE_URL"])
     async with engine.begin() as connection:
         await connection.execute(
-            text("update auth_sessions set expires_at = now() - interval '1 minute' "
-                 "where access_token_hash = :token_hash"),
+            text(
+                "update auth_sessions set expires_at = now() - interval '1 minute' "
+                "where access_token_hash = :token_hash"
+            ),
             {"token_hash": token_hash},
         )
     await engine.dispose()
 
     expired = await auth_client.get("/api/v1/projects", headers=_bearer(user_b))
     assert expired.status_code == 401
+
+
+@pytest.mark.anyio
+async def test_authenticated_demo_seed_is_workspace_scoped_and_idempotent(auth_client):
+    user_a = await _register(auth_client, "DemoA")
+    user_b = await _register(auth_client, "DemoB")
+
+    first_a = await auth_client.post("/api/v1/demo/seed", headers=_bearer(user_a))
+    second_a = await auth_client.post("/api/v1/demo/seed", headers=_bearer(user_a))
+    first_b = await auth_client.post("/api/v1/demo/seed", headers=_bearer(user_b))
+
+    assert first_a.status_code == 201, first_a.text
+    assert second_a.status_code == 201, second_a.text
+    assert first_b.status_code == 201, first_b.text
+
+    seeded_a = first_a.json()
+    seeded_a_again = second_a.json()
+    seeded_b = first_b.json()
+
+    assert seeded_a["project_id"] == seeded_a_again["project_id"]
+    assert seeded_a["dataset_id"] == seeded_a_again["dataset_id"]
+    assert seeded_a["trace_ids"] == seeded_a_again["trace_ids"]
+    assert seeded_a["project_id"] != seeded_b["project_id"]
+    assert seeded_a["dataset_id"] != seeded_b["dataset_id"]
+    assert len(seeded_a["trace_ids"]) == 8
+
+    versions_a = await auth_client.get(
+        f"/api/v1/projects/{seeded_a['project_id']}/versions",
+        headers=_bearer(user_a),
+    )
+    assert versions_a.status_code == 200
+    versions_by_id = {version["id"]: version for version in versions_a.json()}
+    assert versions_by_id[seeded_a["baseline_version_id"]]["retrieval_config"] == {
+        "top_k": 4,
+        "strategy": "keyword",
+    }
+    assert versions_by_id[seeded_a["candidate_version_id"]]["retrieval_config"] == {
+        "top_k": 10,
+        "strategy": "keyword",
+    }
+
+    dataset_a = await auth_client.get(
+        f"/api/v1/datasets/{seeded_a['dataset_id']}",
+        headers=_bearer(user_a),
+    )
+    assert dataset_a.status_code == 200
+    assert len(dataset_a.json()["cases"]) == 3
+
+    comparison_a = await auth_client.get(
+        "/api/v1/evaluations/compare/paired",
+        headers=_bearer(user_a),
+        params={
+            "baseline_version_id": seeded_a["baseline_version_id"],
+            "candidate_version_id": seeded_a["candidate_version_id"],
+        },
+    )
+    assert comparison_a.status_code == 200, comparison_a.text
+    comparison = comparison_a.json()
+    assert len(comparison["regressed"]) == 1
+    assert len(comparison["improved"]) == 1
+    assert len(comparison["unchanged"]) == 5
+    assert len(comparison["not_comparable"]) == 0
+    assert comparison["comparison_coverage"] == "1.0000"
+
+    a_projects = await auth_client.get("/api/v1/projects", headers=_bearer(user_a))
+    b_projects = await auth_client.get("/api/v1/projects", headers=_bearer(user_b))
+    assert a_projects.status_code == 200
+    assert b_projects.status_code == 200
+    assert seeded_a["project_id"] in {project["id"] for project in a_projects.json()}
+    assert seeded_a["project_id"] not in {project["id"] for project in b_projects.json()}

@@ -40,7 +40,9 @@ with client.trace("answer-question", input={"question": question}) as trace:
         docs = retrieve(question)
         span.set_output({"documents": docs})
 
-    with trace.span("generate", type="LLM", input={"question": question, "documents": docs}) as span:
+    with trace.span(
+        "generate", type="LLM", input={"question": question, "documents": docs}
+    ) as span:
         answer = generate(question, docs)
         span.set_attributes(provider="openai", model_name="gpt-4o-mini")
         span.set_output({"answer": answer})

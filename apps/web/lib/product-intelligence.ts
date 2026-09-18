@@ -27,6 +27,7 @@ export interface ComparablePair {
 
 export interface ChangeItem {
   label: string;
+  field?: string;
   before: string;
   after: string;
   evidence: "observed" | "not_configured";
@@ -48,6 +49,7 @@ export interface RegressionCase {
   scoreDelta: number;
   baselineTrace: Trace | null;
   candidateTrace: Trace | null;
+  failureAnalysis?: Record<string, unknown> | null;
 }
 
 export interface RegressionBuckets {
@@ -74,9 +76,9 @@ export interface ReleaseStateInfo {
 const EVALUATOR_CATALOG: Record<string, EvaluatorInfo> = {
   "builtin.answer_contains": {
     category: "Answer Quality",
-    name: "Expected content",
+    name: "Required content",
     implemented: true,
-    description: "Checks whether the answer contains required text for a test-suite case."
+    description: "Checks whether the generated answer satisfies a required content constraint."
   },
   "builtin.answer_exact": {
     category: "Answer Quality",
@@ -89,6 +91,78 @@ const EVALUATOR_CATALOG: Record<string, EvaluatorInfo> = {
     name: "Keyword coverage",
     implemented: true,
     description: "Scores how many required keywords appear in the generated answer."
+  },
+  "builtin.required_content": {
+    category: "Answer Quality",
+    name: "Required content",
+    implemented: true,
+    description: "Checks whether the generated answer satisfies a required content constraint."
+  },
+  "builtin.exact_answer": {
+    category: "Answer Quality",
+    name: "Exact answer match",
+    implemented: true,
+    description: "Checks normalized exact equality with the expected answer."
+  },
+  "builtin.structured_output": {
+    category: "Answer Quality",
+    name: "Structured output",
+    implemented: true,
+    description: "Checks JSON output against the schema configured by the test case."
+  },
+  "builtin.semantic_correctness": {
+    category: "Answer Quality",
+    name: "Semantic correctness",
+    implemented: true,
+    description: "Uses a rubric-based LLM judge to compare the answer with the expected meaning."
+  },
+  "builtin.groundedness": {
+    category: "Answer Quality",
+    name: "Groundedness",
+    implemented: true,
+    description: "Uses a rubric-based LLM judge to check whether material claims are supported by retrieved evidence."
+  },
+  "builtin.required_source": {
+    category: "Retrieval",
+    name: "Required source",
+    implemented: true,
+    description: "Checks whether every source required by the test case was retrieved."
+  },
+  "builtin.retrieval_relevance": {
+    category: "Retrieval",
+    name: "Retrieval relevance",
+    implemented: true,
+    description: "Judges whether retrieved evidence is relevant to the request."
+  },
+  "builtin.expected_tool": {
+    category: "Agent Behavior",
+    name: "Expected tool",
+    implemented: true,
+    description: "Checks whether the application called the tool required by the test case."
+  },
+  "builtin.forbidden_tool": {
+    category: "Agent Behavior",
+    name: "Forbidden tool avoided",
+    implemented: true,
+    description: "Checks that prohibited tools were not called."
+  },
+  "builtin.tool_selection": {
+    category: "Agent Behavior",
+    name: "Tool selection",
+    implemented: true,
+    description: "Judges whether the selected tool was appropriate for the request and available tools."
+  },
+  "builtin.runtime_success": {
+    category: "Operational",
+    name: "Runtime success",
+    implemented: true,
+    description: "Checks whether the application execution completed successfully."
+  },
+  "builtin.latency": {
+    category: "Operational",
+    name: "Latency budget",
+    implemented: true,
+    description: "Checks total run duration against the test case latency budget."
   },
   "builtin.trace_status": {
     category: "Operational",
@@ -125,40 +199,32 @@ const EVALUATOR_CATALOG: Record<string, EvaluatorInfo> = {
 export const PLANNED_EVALUATORS: EvaluatorInfo[] = [
   {
     category: "Answer Quality",
-    name: "Semantic correctness",
+    name: "Hallucination pattern analysis",
     implemented: false,
-    description: "Future evaluator for meaning-level correctness beyond keyword checks."
-  },
-  {
-    category: "Answer Quality",
-    name: "Groundedness",
-    implemented: false,
-    description: "Future evaluator for whether answers are supported by retrieved context."
+    description: "Future analysis for recurring unsupported-claim patterns across evaluation runs."
   },
   {
     category: "Retrieval",
-    name: "Required document retrieved",
+    name: "Semantic retrieval coverage",
     implemented: false,
-    description: "Future evaluator for source coverage and retrieval relevance."
+    description: "Future embedding-assisted analysis for evidence coverage beyond explicit source IDs."
   },
   {
     category: "Agent Behavior",
-    name: "Correct tool selected",
+    name: "Trajectory policy compliance",
     implemented: false,
-    description: "Future evaluator for tool routing and required actions."
-  },
-  {
-    category: "Agent Behavior",
-    name: "Forbidden action avoided",
-    implemented: false,
-    description: "Future evaluator for guardrail-sensitive agent behavior."
+    description: "Future evaluator for multi-step workflow and policy constraints."
   }
 ];
 
 export function evaluatorInfo(evaluatorName: string): EvaluatorInfo {
   return (
     EVALUATOR_CATALOG[evaluatorName] ?? {
-      category: evaluatorName.includes("retriev") ? "Retrieval" : "Operational",
+      category: evaluatorName.includes("retriev") || evaluatorName.includes("source")
+        ? "Retrieval"
+        : evaluatorName.includes("tool")
+          ? "Agent Behavior"
+          : "Operational",
       name: humanizeEvaluatorName(evaluatorName),
       implemented: true,
       description: "Stored evaluator result from the AgentGuard API."
@@ -167,7 +233,24 @@ export function evaluatorInfo(evaluatorName: string): EvaluatorInfo {
 }
 
 export function implementedEvaluatorCatalog(): EvaluatorInfo[] {
-  return Object.values(EVALUATOR_CATALOG);
+  return Array.from(
+    new Map(
+      Object.values(EVALUATOR_CATALOG).map((item) => [`${item.category}:${item.name}`, item])
+    ).values()
+  );
+}
+
+export function isJudgeEvaluator(evaluatorName: string): boolean {
+  return [
+    "builtin.semantic_correctness",
+    "builtin.groundedness",
+    "builtin.retrieval_relevance",
+    "builtin.tool_selection",
+    "Semantic correctness",
+    "Groundedness",
+    "Retrieval relevance",
+    "Tool selection"
+  ].includes(evaluatorName);
 }
 
 export function findDefaultComparisonPair(
@@ -216,13 +299,18 @@ export function summarizeConfigChanges(
   ];
   const changes: ChangeItem[] = [];
   for (const [label, key] of fields) {
-    const before = JSON.stringify(baseline[key] ?? {});
-    const after = JSON.stringify(candidate[key] ?? {});
-    if (before !== after) {
+    const beforeConfig = asConfigRecord(baseline[key]);
+    const afterConfig = asConfigRecord(candidate[key]);
+    const configKeys = [...new Set([...Object.keys(beforeConfig), ...Object.keys(afterConfig)])].sort();
+    for (const configKey of configKeys) {
+      const before = JSON.stringify(beforeConfig[configKey] ?? null);
+      const after = JSON.stringify(afterConfig[configKey] ?? null);
+      if (before === after) continue;
       changes.push({
         label,
-        before: compactJson(before),
-        after: compactJson(after),
+        field: configKey,
+        before: compactJson(formatConfigValue(beforeConfig[configKey])),
+        after: compactJson(formatConfigValue(afterConfig[configKey])),
         evidence: "observed"
       });
     }
@@ -238,6 +326,18 @@ export function summarizeConfigChanges(
           evidence: "not_configured"
         }
       ];
+}
+
+function asConfigRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function formatConfigValue(value: unknown): string {
+  if (value === undefined) return "Not set";
+  if (typeof value === "string") return value;
+  return JSON.stringify(value);
 }
 
 export function classifyEvaluationPairs({

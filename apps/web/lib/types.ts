@@ -143,6 +143,89 @@ export interface VersionComparison {
   regression_count_delta: number;
 }
 
+export interface CaseComparison {
+  dataset_case_id: string | null;
+  evaluator_name: string;
+  baseline_evaluation_id: string | null;
+  candidate_evaluation_id: string | null;
+  baseline_evaluation_job_id: string | null;
+  candidate_evaluation_job_id: string | null;
+  baseline_evaluation_job_case_id: string | null;
+  candidate_evaluation_job_case_id: string | null;
+  baseline_score: string | number | null;
+  candidate_score: string | number | null;
+  baseline_status: EvaluationStatus | null;
+  candidate_status: EvaluationStatus | null;
+  classification: "REGRESSED" | "IMPROVED" | "UNCHANGED" | "NOT_COMPARABLE";
+  explanation: string;
+  failure_analysis: Record<string, JsonValue> | null;
+}
+
+export interface FailureCluster {
+  label: string;
+  summary: string;
+  likely_failure_stage: string;
+  case_count: number;
+  evaluator_names: string[];
+  dataset_case_ids: Array<string | null>;
+}
+
+export interface PairedVersionComparison extends VersionComparison {
+  regressed: CaseComparison[];
+  improved: CaseComparison[];
+  unchanged: CaseComparison[];
+  not_comparable: CaseComparison[];
+  failure_clusters: FailureCluster[];
+  comparable_case_count: number;
+  total_case_count: number;
+  comparison_coverage: string | number | null;
+}
+
+export interface EvaluationJobCase {
+  id: string;
+  job_id: string;
+  dataset_case_id: string;
+  trace_id: string | null;
+  evaluation_result_id: string | null;
+  status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
+  attempts: number;
+  error: Record<string, JsonValue> | null;
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+}
+
+export interface EvaluationJob {
+  id: string;
+  request_id: string;
+  queue_job_id: string | null;
+  project_id: string;
+  dataset_id: string;
+  application_version_id: string;
+  evaluator_name: string;
+  status: "QUEUED" | "RUNNING" | "COMPLETED" | "PARTIAL" | "FAILED";
+  total_cases: number;
+  completed_cases: number;
+  failed_cases: number;
+  max_attempts: number;
+  error: Record<string, JsonValue> | null;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  cases: EvaluationJobCase[];
+}
+
+export interface EvaluationOrchestrationResponse {
+  status: "QUEUED" | "COMPLETED";
+  dataset_id: string;
+  baseline_version_id: string;
+  candidate_version_id: string;
+  evaluator_names: string[];
+  jobs: EvaluationJob[];
+  comparison: PairedVersionComparison | null;
+  release_decision: ReleaseDecision | null;
+}
+
 export interface ReleaseDecision {
   project_id: string;
   baseline_version_id: string;
@@ -154,6 +237,11 @@ export interface ReleaseDecision {
   minimum_pass_rate: string | number;
   maximum_regressions: number;
   allowed_score_drop: string | number;
+  minimum_evaluation_coverage: string | number;
+  required_evaluator_names: string[];
+  comparison_coverage: string | number;
+  runtime_failure_count: number;
+  critical_regression_count: number;
 }
 
 export interface DatasetCase {

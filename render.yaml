@@ -32,7 +32,7 @@ services:
       - key: AGENTGUARD_EMBEDDED_WORKER_ENABLED
         value: "true"
       - key: AGENTGUARD_DEMO_SEED_ENABLED
-        value: "false"
+        value: "true"
       - key: AGENTGUARD_MAX_TRACE_SPANS
         value: "500"
       - key: AGENTGUARD_MAX_INGESTION_BYTES
@@ -41,6 +41,12 @@ services:
         value: "300"
       - key: AGENTGUARD_EVALUATION_WORKER_CONCURRENCY
         value: "2"
+      - key: AGENTGUARD_JUDGE_PROVIDER
+        value: disabled
+      - key: AGENTGUARD_JUDGE_BASE_URL
+        value: https://api.openai.com/v1
+      - key: AGENTGUARD_JUDGE_MODEL
+        value: gpt-4o-mini
       - key: AGENTGUARD_JUDGE_API_KEY
         sync: false
 
@@ -52,7 +58,12 @@ services:
     region: oregon
     envVars:
       - key: AGENTGUARD_API_URL
-        value: https://agentguard-api-7evp.onrender.com
+        fromService:
+          name: agentguard-api
+          type: web
+          property: hostport
+      - key: AGENTGUARD_DEMO_SEED_ENABLED
+        value: "true"
 
 databases:
   - name: agentguard-postgres

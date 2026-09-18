@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { ApiRequestError, createDataset, runDatasetCase } from "@/lib/api";
+import { ApiRequestError, createDataset, orchestrateEvaluation, runDatasetCase } from "@/lib/api";
 
 function errorMessage(error: unknown): string {
   if (error instanceof ApiRequestError) {
@@ -70,4 +70,67 @@ export async function runDatasetCaseAction(formData: FormData) {
   revalidatePath("/releases");
   revalidatePath("/traces");
   redirect(`/traces/${traceId}`);
+}
+
+export async function runDatasetSuiteAction(formData: FormData) {
+  const versionId = String(formData.get("application_version_id") ?? "");
+  const caseIds = formData.getAll("case_id").map(String).filter(Boolean);
+  if (!versionId || caseIds.length === 0) {
+    redirect("/datasets?dataset_error=Choose a suite and version before running checks");
+  }
+
+  try {
+    for (const caseId of caseIds) {
+      await runDatasetCase(caseId, versionId);
+    }
+  } catch (error) {
+    redirect(`/datasets?dataset_error=${errorMessage(error)}`);
+  }
+
+  revalidatePath("/datasets");
+  revalidatePath("/evaluations");
+  revalidatePath("/releases");
+  revalidatePath("/traces");
+  redirect("/releases");
+}
+
+export async function evaluateCandidateAction(formData: FormData) {
+  const datasetId = String(formData.get("dataset_id") ?? "");
+  const baselineVersionId = String(formData.get("baseline_version_id") ?? "");
+  const candidateVersionId = String(formData.get("candidate_version_id") ?? "");
+
+  if (!datasetId || !baselineVersionId || !candidateVersionId) {
+    redirect("/datasets?dataset_error=Choose a suite, baseline, and candidate before evaluating");
+  }
+
+  if (baselineVersionId === candidateVersionId) {
+    redirect("/datasets?dataset_error=Baseline and candidate must be different versions");
+  }
+
+  let pendingUrl = "";
+  try {
+    const result = await orchestrateEvaluation({
+      dataset_id: datasetId,
+      baseline_version_id: baselineVersionId,
+      candidate_version_id: candidateVersionId,
+      request_id: `dashboard:${Date.now()}`
+    });
+    if (result.status === "QUEUED") {
+      const jobIds = result.jobs.map((job) => job.id).join(",");
+      pendingUrl = `/evaluations?job_ids=${encodeURIComponent(jobIds)}&baseline_version_id=${baselineVersionId}&candidate_version_id=${candidateVersionId}`;
+    }
+  } catch (error) {
+    redirect(`/datasets?dataset_error=${errorMessage(error)}`);
+  }
+
+  revalidatePath("/datasets");
+  revalidatePath("/evaluations");
+  revalidatePath("/releases");
+  revalidatePath("/traces");
+  if (pendingUrl) {
+    redirect(pendingUrl);
+  }
+  redirect(
+    `/releases?baseline_version_id=${baselineVersionId}&candidate_version_id=${candidateVersionId}`
+  );
 }

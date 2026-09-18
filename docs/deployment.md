@@ -1,112 +1,106 @@
-# AgentGuard Deployment Guide
+# Deployment
 
-AgentGuard has four runtime pieces:
-
-- Next.js web app (`apps/web`)
-- FastAPI backend (`apps/api`)
-- PostgreSQL database
-- Redis-compatible queue for evaluation jobs
-
-The preferred production topology is:
+## Production Topology
 
 ```text
-Web -> API -> Postgres
-           -> Redis queue -> worker
+Browser -> Next.js web -> FastAPI API + embedded worker -> PostgreSQL
+                                  |
+                                  +-> Redis/Key Value
+                                  |
+                                  +-> optional judge provider
 ```
 
-For a free public demo, `render.yaml` uses an embedded API worker instead of a separate paid
-background-worker service:
+[`render.yaml`](../render.yaml) defines the zero-cost portfolio topology: web, API, PostgreSQL, and
+Redis. The API enqueues evaluation jobs and returns `202`; an embedded background worker claims the
+persisted jobs and records per-case progress plus terminal `COMPLETED`, `PARTIAL`, or `FAILED`
+status. A paid deployment should move the same worker loop into a dedicated worker service.
 
-```text
-Web -> API + embedded evaluation worker -> Postgres
-                                      -> Render Key Value
-```
-
-This keeps the product usable on free hosting, but it is still a demo-tier topology. The API service
-can spin down when idle, so queued evaluations process only while the service is awake.
-
-## Free Hosting Reality
-
-Render currently supports free web services, free Postgres, and free Key Value instances. Render
-does not provide free background-worker instances, so the blueprint enables
-`AGENTGUARD_EMBEDDED_WORKER_ENABLED=true`.
-
-Important free-tier limitations:
-
-- free web services spin down after inactivity and wake up slowly;
-- free Render Postgres expires after 30 days unless upgraded;
-- free Key Value is in-memory and can lose queue state on restart;
-- this is suitable for a portfolio/demo deployment, not production customer data.
-
-## Deploy With Render Blueprint
+## Render Blueprint
 
 1. Push the repository to GitHub.
-2. Open Render and create a new Blueprint from this repository.
-3. Select `render.yaml`.
-4. Let Render create:
-   - `agentguard-api`
-   - `agentguard-web`
-   - `agentguard-postgres`
-   - `agentguard-redis`
-5. Keep `AGENTGUARD_JUDGE_API_KEY` empty unless you want to enable LLM judge checks.
+2. In Render, create a Blueprint from `render.yaml`.
+3. Review the resource plans before applying it.
+4. Set `AGENTGUARD_JUDGE_API_KEY` only when using an external provider.
+5. Verify `/healthz`, registration, SDK-key ingestion, a queued evaluation, and a release comparison.
 
-## Required Environment Variables
+The API is the single migration owner and runs `alembic upgrade head` before serving traffic. The
+free Render preview runs its background worker in the API process. Docker Compose keeps the worker
+as a separate service so local development exercises the production-style process boundary.
 
-API service:
+## Required Production Settings
 
 ```text
 AGENTGUARD_ENVIRONMENT=production
 AGENTGUARD_AUTH_REQUIRED=true
 AGENTGUARD_EVALUATION_QUEUE_BACKEND=redis
 AGENTGUARD_EMBEDDED_WORKER_ENABLED=true
-AGENTGUARD_DEMO_SEED_ENABLED=false
-AGENTGUARD_DATABASE_URL=<Render Postgres connectionString>
-AGENTGUARD_REDIS_URL=<Render Key Value connectionString>
+AGENTGUARD_DEMO_SEED_ENABLED=true
+AGENTGUARD_DATABASE_URL=<managed PostgreSQL URL>
+AGENTGUARD_REDIS_URL=<managed Redis/Key Value URL>
 ```
 
-Web service:
+Production startup refuses disabled auth or inline evaluation execution.
+
+For external AI judging:
 
 ```text
-AGENTGUARD_API_URL=<Render private hostport for agentguard-api>
+AGENTGUARD_JUDGE_PROVIDER=openai-compatible
+AGENTGUARD_JUDGE_BASE_URL=https://provider.example/v1
+AGENTGUARD_JUDGE_MODEL=<model>
+AGENTGUARD_JUDGE_API_KEY=<secret>
 ```
 
-The Blueprint fills `AGENTGUARD_API_URL` from the API service's private `hostport` value. The web
-app accepts either a full URL (`https://...`) or a private hostport (`service:port`).
+Do not expose judge/provider secrets through `NEXT_PUBLIC_*` variables.
 
-## Post-Deploy Smoke Test
+## Local Ollama
 
-1. Open the web URL.
-2. Register a workspace.
-3. Open Setup.
-4. Create an SDK API key.
-5. Create a project and two versions.
-6. Create a test suite.
-7. Run the demo or an instrumented app against both versions.
-8. Start an evaluation job.
-9. Confirm the job moves from `QUEUED` to `RUNNING` to `COMPLETED` or `PARTIAL`.
-10. Open Releases and verify AgentGuard shows a real release state:
-    - Safe to ship
-    - Block: regressions detected
-    - Block: runtime failures
-    - Not enough evidence to decide
+Use `http://localhost:11434` for a natively running API and
+`http://host.docker.internal:11434` for Docker. The compose file supplies the host mapping.
 
-## Public Resume Demo Checklist
+A public Render worker cannot reach an Ollama process on a developer laptop without a deliberately
+configured secure network tunnel. The public demo should remain deterministic-only unless a
+reachable judge is provided.
 
-- Website is public.
-- Users can register and log in.
-- Workspaces isolate data.
-- SDK API keys can be created from Setup.
-- API accepts trace ingestion with the SDK key.
-- Evaluations run asynchronously.
-- Release decisions are derived from stored evaluation evidence.
-- Runs expose trace/step evidence for investigation.
+## Zero-Cost Reality
 
-## When To Upgrade
+Render does not offer a free dedicated background-worker instance. This repository therefore uses
+the API's embedded worker for the public zero-cost portfolio preview. Work pauses when the free API
+sleeps and resumes after it wakes; PostgreSQL remains the source of truth for job progress.
 
-Move off the free topology when real users depend on it:
+For sustained production traffic, set `AGENTGUARD_EMBEDDED_WORKER_ENABLED=false` and run
+`arq agentguard_api.worker.WorkerSettings` as a dedicated worker connected to the same PostgreSQL
+and Redis services. Free database lifetimes and Redis persistence may also be limited by Render's
+current plans. These limits must not be presented as production-grade guarantees.
 
-- use a paid API service that does not spin down;
-- run a separate paid background worker;
-- use a paid Postgres database with backups;
-- use a persistent Redis/Key Value plan;
-- add a custom domain and monitoring.
+## Local Full Stack
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+If local ports are occupied:
+
+```bash
+AGENTGUARD_POSTGRES_PORT=55432 AGENTGUARD_REDIS_PORT=56379 docker compose up --build
+```
+
+Internal container networking remains `postgres:5432` and `redis:6379`.
+
+## Smoke Test
+
+1. Register and log in.
+2. Create an SDK key in Setup.
+3. Create a project and `prod-v1` / `candidate-v2`.
+4. Run the same suite against both versions.
+5. Click **Evaluate candidate** and observe worker progress.
+6. Open Releases and inspect regression evidence plus policy reasons.
+7. Open a candidate run and distinguish execution health from behavioral evaluation.
+
+## Operations
+
+- Keep PostgreSQL backups and Redis persistence appropriate to the environment.
+- Monitor API/worker logs and failed job cases.
+- Rotate SDK keys; only hashes are stored.
+- Use HTTPS and private service networking.
+- Keep `AGENTGUARD_DEMO_SEED_ENABLED=false` unless an authenticated demo is intentional.

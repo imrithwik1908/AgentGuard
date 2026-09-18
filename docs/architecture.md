@@ -1,18 +1,17 @@
 # AgentGuard Architecture
 
-AgentGuard is a monorepo with an async FastAPI API, PostgreSQL persistence, a Python
-instrumentation SDK, a deterministic demo agent, and a Next.js web UI for trace inspection,
-golden datasets, and initial evaluations.
+AgentGuard is a monorepo with an async FastAPI API, PostgreSQL persistence, Redis/ARQ evaluation
+workers, a Python instrumentation SDK, reference applications, and a Next.js decision UI.
 
 ```mermaid
 flowchart LR
-  Demo[Demo Agent] --> SDK[Python SDK]
+  App[LLM / RAG / agent app] --> SDK[Python SDK]
   SDK --> API[FastAPI API]
   API --> DB[(PostgreSQL)]
-  API --> Eval[Built-in Evaluator]
-  Eval --> DB
-  Web --> Dataset[Dataset Runs]
-  Dataset --> API
+  API --> Queue[(Redis)]
+  Queue --> Worker[Evaluation Worker]
+  Worker --> DB
+  Worker -. optional .-> Judge[Ollama / compatible judge]
   Web[Next.js Web UI] --> API
 ```
 
@@ -41,11 +40,11 @@ PostgreSQL stores relational ownership and span topology while JSONB fields pres
 
 `TIMESTAMPTZ` is used throughout. `duration_ms` is derived from canonical `started_at` and `ended_at` values server-side.
 
-Datasets store expected behavior independently from traces. A dataset-case run creates a fresh trace
-and then records an evaluation result against that trace and case. Evaluation results are stored
-separately from traces so later evaluator types can reuse the same trace model. Release decisions
-are calculated from stored version summaries and comparisons; they are deterministic API responses,
-not persisted deployment approvals.
+Test suites store expected behavior independently from traces. Evaluation jobs connect one suite,
+version, evaluator, and request ID; job-case rows connect every case to its exact trace and evaluator
+result. Comparison selects the latest terminal execution for each suite/version/evaluator and pairs
+the same case/evaluator across versions. Release decisions are deterministic API responses computed
+from stored evidence, not LLM opinions or persisted deployment approvals.
 
 ## Future Work
 

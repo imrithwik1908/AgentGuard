@@ -1,3 +1,4 @@
+import hashlib
 from decimal import Decimal
 from uuid import UUID
 
@@ -8,6 +9,10 @@ from sqlalchemy.orm import selectinload
 
 from agentguard_api.models import (
     ApplicationVersion,
+    DatasetCase,
+    EvaluationJob,
+    EvaluationJobCase,
+    EvaluationJobStatus,
     EvaluationMethod,
     EvaluationResult,
     EvaluationStatus,
@@ -22,6 +27,18 @@ from agentguard_api.schemas.evaluation import (
     VersionComparison,
 )
 from agentguard_api.services.errors import ConflictError, NotFoundError, ValidationError
+from agentguard_api.services.failure_analysis import analyze_pair
+
+
+def orchestration_job_request_id(
+    request_id: str | None,
+    version_id: UUID,
+    evaluator_name: str,
+) -> str | None:
+    if request_id is None:
+        return None
+    digest = hashlib.sha256(f"{request_id}:{version_id}:{evaluator_name}".encode()).hexdigest()
+    return f"orchestration:{digest}"
 
 
 def _regression_tolerance(
@@ -31,6 +48,20 @@ def _regression_tolerance(
         return Decimal("0.0500")
 
     return Decimal("0.0500")
+
+
+TERMINAL_JOB_STATUSES = {
+    EvaluationJobStatus.COMPLETED,
+    EvaluationJobStatus.PARTIAL,
+}
+
+
+def _supports_fail_to_fail_worsening(evaluation: EvaluationResult) -> bool:
+    return evaluation.method in {
+        EvaluationMethod.LLM_JUDGE,
+        EvaluationMethod.RETRIEVAL,
+    }
+
 
 def _derive_status(
     *,
@@ -129,9 +160,7 @@ async def create_status_evaluation(
     trace_query = select(Trace).options(selectinload(Trace.spans)).where(Trace.id == trace_id)
     if workspace_id is not None:
         trace_query = trace_query.join(Project).where(Project.workspace_id == workspace_id)
-    trace = await session.scalar(
-        trace_query
-    )
+    trace = await session.scalar(trace_query)
     if trace is None:
         raise NotFoundError("trace was not found", metadata={"trace_id": str(trace_id)})
 
@@ -203,9 +232,7 @@ async def create_trace_health_evaluations(
     trace_query = select(Trace).options(selectinload(Trace.spans)).where(Trace.id == trace_id)
     if workspace_id is not None:
         trace_query = trace_query.join(Project).where(Project.workspace_id == workspace_id)
-    trace = await session.scalar(
-        trace_query
-    )
+    trace = await session.scalar(trace_query)
     if trace is None:
         raise NotFoundError("trace was not found", metadata={"trace_id": str(trace_id)})
 
@@ -253,9 +280,7 @@ async def create_trace_health_evaluations(
             threshold=Decimal("1.0000"),
             passed=not error_spans,
             label="No nested span errors" if not error_spans else "Nested span errors found",
-            explanation=(
-                "Checks whether any internal step captured an exception or ERROR status."
-            ),
+            explanation=("Checks whether any internal step captured an exception or ERROR status."),
             metadata={
                 "error_span_count": len(error_spans),
                 "error_spans": [
@@ -277,9 +302,7 @@ async def create_trace_health_evaluations(
                 if trace.duration_ms <= latency_budget_ms
                 else "Latency exceeded budget"
             ),
-            explanation=(
-                "Scores the trace duration against a deterministic latency budget."
-            ),
+            explanation=("Scores the trace duration against a deterministic latency budget."),
             metadata={
                 "duration_ms": trace.duration_ms,
                 "latency_budget_ms": latency_budget_ms,
@@ -435,6 +458,152 @@ async def summarize_version(
     )
 
 
+def _summary_from_evaluations(
+    *,
+    project_id: UUID,
+    version_id: UUID,
+    evaluations: list[EvaluationResult],
+) -> EvaluationSummary:
+    evaluation_count = len(evaluations)
+    pass_count = sum(1 for item in evaluations if item.status == EvaluationStatus.PASS)
+    fail_count = sum(1 for item in evaluations if item.status == EvaluationStatus.FAIL)
+    error_count = sum(1 for item in evaluations if item.status == EvaluationStatus.ERROR)
+    average_score = (
+        (
+            sum((item.score for item in evaluations), Decimal("0.0000")) / Decimal(evaluation_count)
+        ).quantize(Decimal("0.0001"))
+        if evaluation_count
+        else None
+    )
+    pass_rate = (
+        (Decimal(pass_count) / Decimal(evaluation_count)).quantize(Decimal("0.0001"))
+        if evaluation_count
+        else None
+    )
+    return EvaluationSummary(
+        project_id=project_id,
+        application_version_id=version_id,
+        evaluation_count=evaluation_count,
+        trace_count=len({item.trace_id for item in evaluations}),
+        pass_count=pass_count,
+        fail_count=fail_count,
+        error_count=error_count,
+        pass_rate=pass_rate,
+        average_score=average_score,
+    )
+
+
+async def _latest_job_case_evaluations(
+    session: AsyncSession,
+    *,
+    baseline_version_id: UUID,
+    candidate_version_id: UUID,
+    workspace_id: UUID | None = None,
+) -> list[tuple[EvaluationJob, EvaluationJobCase, EvaluationResult]]:
+    stmt = (
+        select(EvaluationJob)
+        .options(selectinload(EvaluationJob.cases))
+        .where(
+            EvaluationJob.application_version_id.in_([baseline_version_id, candidate_version_id]),
+            EvaluationJob.status.in_(TERMINAL_JOB_STATUSES),
+        )
+        .order_by(EvaluationJob.created_at.desc())
+    )
+    if workspace_id is not None:
+        stmt = stmt.join(Project, Project.id == EvaluationJob.project_id).where(
+            Project.workspace_id == workspace_id
+        )
+
+    jobs = list((await session.execute(stmt)).scalars())
+    latest_jobs: dict[tuple[UUID, UUID, str], EvaluationJob] = {}
+    for job in jobs:
+        key = (job.dataset_id, job.application_version_id, job.evaluator_name)
+        latest_jobs.setdefault(key, job)
+
+    evaluation_ids = [
+        case.evaluation_result_id
+        for job in latest_jobs.values()
+        for case in job.cases
+        if case.evaluation_result_id is not None
+    ]
+    if not evaluation_ids:
+        return []
+
+    evaluations = list(
+        (
+            await session.execute(
+                select(EvaluationResult).where(EvaluationResult.id.in_(evaluation_ids))
+            )
+        ).scalars()
+    )
+    evaluation_by_id = {evaluation.id: evaluation for evaluation in evaluations}
+    rows: list[tuple[EvaluationJob, EvaluationJobCase, EvaluationResult]] = []
+    for job in latest_jobs.values():
+        for case in job.cases:
+            if case.evaluation_result_id is None:
+                continue
+            evaluation = evaluation_by_id.get(case.evaluation_result_id)
+            if evaluation is not None:
+                rows.append((job, case, evaluation))
+    return rows
+
+
+async def _latest_direct_evaluations(
+    session: AsyncSession,
+    *,
+    baseline_version_id: UUID,
+    candidate_version_id: UUID,
+    workspace_id: UUID | None = None,
+) -> list[tuple[None, None, EvaluationResult]]:
+    stmt = select(EvaluationResult).where(
+        EvaluationResult.application_version_id.in_([baseline_version_id, candidate_version_id]),
+        EvaluationResult.dataset_case_id.is_not(None),
+    )
+    if workspace_id is not None:
+        stmt = stmt.join(Project, Project.id == EvaluationResult.project_id).where(
+            Project.workspace_id == workspace_id
+        )
+    rows = list((await session.execute(stmt)).scalars())
+    latest: dict[tuple[UUID, UUID, str], EvaluationResult] = {}
+    for row in rows:
+        if row.dataset_case_id is None:
+            continue
+        key = (row.dataset_case_id, row.application_version_id, row.evaluator_name)
+        previous = latest.get(key)
+        if previous is None or row.created_at > previous.created_at:
+            latest[key] = row
+    return [(None, None, evaluation) for evaluation in latest.values()]
+
+
+async def _comparison_evidence(
+    session: AsyncSession,
+    *,
+    baseline_version_id: UUID,
+    candidate_version_id: UUID,
+    workspace_id: UUID | None = None,
+) -> tuple[
+    list[tuple[EvaluationJob | None, EvaluationJobCase | None, EvaluationResult]],
+    bool,
+]:
+    job_rows = await _latest_job_case_evaluations(
+        session,
+        baseline_version_id=baseline_version_id,
+        candidate_version_id=candidate_version_id,
+        workspace_id=workspace_id,
+    )
+    if job_rows:
+        return job_rows, True
+    return (
+        await _latest_direct_evaluations(
+            session,
+            baseline_version_id=baseline_version_id,
+            candidate_version_id=candidate_version_id,
+            workspace_id=workspace_id,
+        ),
+        False,
+    )
+
+
 async def compare_versions(
     session: AsyncSession,
     *,
@@ -464,8 +633,38 @@ async def compare_versions(
     if baseline_version.project_id != candidate_version.project_id:
         raise ValidationError("versions must belong to the same project to compare them")
 
-    baseline = await summarize_version(session, baseline_version_id, workspace_id=workspace_id)
-    candidate = await summarize_version(session, candidate_version_id, workspace_id=workspace_id)
+    evidence, _ = await _comparison_evidence(
+        session,
+        baseline_version_id=baseline_version_id,
+        candidate_version_id=candidate_version_id,
+        workspace_id=workspace_id,
+    )
+    if evidence:
+        baseline_evaluations = [
+            evaluation
+            for _, _, evaluation in evidence
+            if evaluation.application_version_id == baseline_version_id
+        ]
+        candidate_evaluations = [
+            evaluation
+            for _, _, evaluation in evidence
+            if evaluation.application_version_id == candidate_version_id
+        ]
+        baseline = _summary_from_evaluations(
+            project_id=baseline_version.project_id,
+            version_id=baseline_version_id,
+            evaluations=baseline_evaluations,
+        )
+        candidate = _summary_from_evaluations(
+            project_id=baseline_version.project_id,
+            version_id=candidate_version_id,
+            evaluations=candidate_evaluations,
+        )
+    else:
+        baseline = await summarize_version(session, baseline_version_id, workspace_id=workspace_id)
+        candidate = await summarize_version(
+            session, candidate_version_id, workspace_id=workspace_id
+        )
     score_delta = (
         (candidate.average_score - baseline.average_score).quantize(Decimal("0.0001"))
         if candidate.average_score is not None and baseline.average_score is not None
@@ -501,24 +700,21 @@ async def paired_case_comparison(
         candidate_version_id=candidate_version_id,
         workspace_id=workspace_id,
     )
-    stmt = select(EvaluationResult).where(
-        EvaluationResult.application_version_id.in_([baseline_version_id, candidate_version_id]),
-        EvaluationResult.dataset_case_id.is_not(None),
+    rows, job_scoped = await _comparison_evidence(
+        session,
+        baseline_version_id=baseline_version_id,
+        candidate_version_id=candidate_version_id,
+        workspace_id=workspace_id,
     )
-    if workspace_id is not None:
-        stmt = stmt.join(Project, Project.id == EvaluationResult.project_id).where(
-            Project.workspace_id == workspace_id
-        )
-    result = await session.execute(stmt)
-    rows = list(result.scalars())
-    grouped: dict[tuple[UUID | None, str], dict[str, EvaluationResult]] = {}
-    for row in rows:
+    grouped: dict[tuple[UUID | None, str], dict[str, EvaluationResult | UUID | None]] = {}
+    for job, job_case, row in rows:
         key = (row.dataset_case_id, row.evaluator_name)
         side = "baseline" if row.application_version_id == baseline_version_id else "candidate"
         current = grouped.setdefault(key, {})
-        previous = current.get(side)
-        if previous is None or row.created_at > previous.created_at:
-            current[side] = row
+        current[side] = row
+        if job_scoped:
+            current[f"{side}_job_id"] = job.id if job else None
+            current[f"{side}_job_case_id"] = job_case.id if job_case else None
 
     buckets: dict[str, list[dict]] = {
         "regressed": [],
@@ -529,6 +725,8 @@ async def paired_case_comparison(
     for (dataset_case_id, evaluator_name), pair in grouped.items():
         baseline_eval = pair.get("baseline")
         candidate_eval = pair.get("candidate")
+        baseline_eval = baseline_eval if isinstance(baseline_eval, EvaluationResult) else None
+        candidate_eval = candidate_eval if isinstance(candidate_eval, EvaluationResult) else None
         if baseline_eval is None or candidate_eval is None:
             classification = "not_comparable"
             explanation = "This case has evaluation evidence for only one version."
@@ -539,17 +737,21 @@ async def paired_case_comparison(
             classification = "improved"
             explanation = "The case failed in the baseline but passed in the candidate."
         elif (
-            baseline_eval.score - candidate_eval.score
-            >= _regression_tolerance(candidate_eval)
+            not baseline_eval.passed
+            and not candidate_eval.passed
+            and not _supports_fail_to_fail_worsening(candidate_eval)
         ):
+            classification = "unchanged"
+            explanation = (
+                "Both versions failed this deterministic check; "
+                "no supported worsening was detected."
+            )
+        elif baseline_eval.score - candidate_eval.score >= _regression_tolerance(candidate_eval):
             classification = "regressed"
             explanation = (
                 "The candidate score decreased meaningfully for the same test case and evaluator."
             )
-        elif (
-            candidate_eval.score - baseline_eval.score
-            >= _regression_tolerance(candidate_eval)
-        ):
+        elif candidate_eval.score - baseline_eval.score >= _regression_tolerance(candidate_eval):
             classification = "improved"
             explanation = (
                 "The candidate score improved meaningfully for the same test case and evaluator."
@@ -563,6 +765,10 @@ async def paired_case_comparison(
                 "evaluator_name": evaluator_name,
                 "baseline_evaluation_id": baseline_eval.id if baseline_eval else None,
                 "candidate_evaluation_id": candidate_eval.id if candidate_eval else None,
+                "baseline_evaluation_job_id": pair.get("baseline_job_id"),
+                "candidate_evaluation_job_id": pair.get("candidate_job_id"),
+                "baseline_evaluation_job_case_id": pair.get("baseline_job_case_id"),
+                "candidate_evaluation_job_case_id": pair.get("candidate_job_case_id"),
                 "baseline_score": baseline_eval.score if baseline_eval else None,
                 "candidate_score": candidate_eval.score if candidate_eval else None,
                 "baseline_status": baseline_eval.status if baseline_eval else None,
@@ -571,6 +777,12 @@ async def paired_case_comparison(
                 if classification != "not_comparable"
                 else "NOT_COMPARABLE",
                 "explanation": explanation,
+                "failure_analysis": analyze_pair(
+                    baseline=baseline_eval,
+                    candidate=candidate_eval,
+                )
+                if classification == "regressed"
+                else None,
             }
         )
     return buckets
@@ -584,6 +796,8 @@ async def decide_release(
     minimum_pass_rate: Decimal,
     maximum_regressions: int,
     allowed_score_drop: Decimal,
+    minimum_evaluation_coverage: Decimal = Decimal("1.0000"),
+    required_evaluator_names: list[str] | None = None,
     workspace_id: UUID | None = None,
 ) -> ReleaseDecision:
     comparison = await compare_versions(
@@ -605,11 +819,21 @@ async def decide_release(
         reasons.append("Candidate has no evaluation results yet.")
 
     paired_regressions = len(paired["regressed"])
-    comparable_count = (
-        len(paired["regressed"])
-        + len(paired["improved"])
-        + len(paired["unchanged"])
+    comparable_count = len(paired["regressed"]) + len(paired["improved"]) + len(paired["unchanged"])
+    total_count = comparable_count + len(paired["not_comparable"])
+    comparison_coverage = (
+        (Decimal(comparable_count) / Decimal(total_count)).quantize(Decimal("0.0001"))
+        if total_count
+        else Decimal("0.0000")
     )
+    required_evaluator_names = required_evaluator_names or []
+    paired_items = [
+        item
+        for bucket in ("regressed", "improved", "unchanged", "not_comparable")
+        for item in paired[bucket]
+    ]
+    observed_evaluators = {str(item["evaluator_name"]) for item in paired_items}
+    missing_required_evaluators = sorted(set(required_evaluator_names) - observed_evaluators)
 
     paired_score_deltas = [
         item["candidate_score"] - item["baseline_score"]
@@ -618,10 +842,9 @@ async def decide_release(
         if item["candidate_score"] is not None and item["baseline_score"] is not None
     ]
     paired_average_score_delta = (
-        (
-            sum(paired_score_deltas, Decimal("0.0000"))
-            / Decimal(len(paired_score_deltas))
-        ).quantize(Decimal("0.0001"))
+        (sum(paired_score_deltas, Decimal("0.0000")) / Decimal(len(paired_score_deltas))).quantize(
+            Decimal("0.0001")
+        )
         if paired_score_deltas
         else None
     )
@@ -636,6 +859,54 @@ async def decide_release(
             f"{len(paired['not_comparable'])} test-case evaluations are missing "
             "baseline or candidate evidence."
         )
+
+    coverage_blocked = comparison_coverage < minimum_evaluation_coverage
+    if coverage_blocked:
+        reasons.append(
+            f"Comparison coverage {comparison_coverage} is below required "
+            f"{minimum_evaluation_coverage}."
+        )
+
+    if missing_required_evaluators:
+        reasons.append(
+            "Required evaluator evidence is missing: "
+            + ", ".join(missing_required_evaluators)
+            + "."
+        )
+
+    runtime_evaluator_names = {"builtin.runtime_success", "builtin.trace_status"}
+    runtime_failures = [
+        item
+        for item in paired_items
+        if item["evaluator_name"] in runtime_evaluator_names
+        and item["candidate_status"] == EvaluationStatus.FAIL
+    ]
+    runtime_blocked = bool(runtime_failures)
+    if runtime_blocked:
+        reasons.append(
+            f"Candidate has {len(runtime_failures)} runtime-success check(s) that failed."
+        )
+
+    regressed_case_ids = {
+        item["dataset_case_id"]
+        for item in paired["regressed"]
+        if item["dataset_case_id"] is not None
+    }
+    critical_regression_count = 0
+    if regressed_case_ids:
+        critical_cases = list(
+            (
+                await session.execute(
+                    select(DatasetCase).where(DatasetCase.id.in_(regressed_case_ids))
+                )
+            ).scalars()
+        )
+        critical_regression_count = sum(
+            1 for case in critical_cases if bool(case.meta.get("critical"))
+        )
+    critical_blocked = critical_regression_count > 0
+    if critical_blocked:
+        reasons.append(f"Candidate regressed {critical_regression_count} critical test case(s).")
 
     pass_rate_blocked = False
     if (
@@ -666,8 +937,19 @@ async def decide_release(
             f"{allowed_score_drop}."
         )
 
-    has_missing_evidence = comparable_count == 0 or bool(paired["not_comparable"])
-    has_blocker = regression_blocked or pass_rate_blocked or score_drop_blocked
+    has_missing_evidence = (
+        comparable_count == 0
+        or bool(paired["not_comparable"])
+        or coverage_blocked
+        or bool(missing_required_evaluators)
+    )
+    has_blocker = (
+        regression_blocked
+        or pass_rate_blocked
+        or score_drop_blocked
+        or runtime_blocked
+        or critical_blocked
+    )
 
     if not reasons:
         decision = "PASS"
@@ -693,4 +975,9 @@ async def decide_release(
         minimum_pass_rate=minimum_pass_rate,
         maximum_regressions=maximum_regressions,
         allowed_score_drop=allowed_score_drop,
+        minimum_evaluation_coverage=minimum_evaluation_coverage,
+        required_evaluator_names=required_evaluator_names,
+        comparison_coverage=comparison_coverage,
+        runtime_failure_count=len(runtime_failures),
+        critical_regression_count=critical_regression_count,
     )

@@ -50,17 +50,28 @@ python examples/customer-support-rag/support_agent.py \
 
 ## Run The Same Suite Against Two Versions
 
+For the most realistic AgentGuard workflow, first create/import the suite in the dashboard and copy
+its dataset ID. Running with `--dataset-id` fetches the dashboard cases and attaches each real
+AgentGuard case UUID to the trace, so backend evaluation can pair baseline and candidate evidence.
+
 ```bash
 export RETRIEVAL_TOP_K=4
-python examples/customer-support-rag/support_agent.py --version baseline-topk-4
+python examples/customer-support-rag/support_agent.py \
+  --dataset-id <agentguard-dataset-id> \
+  --version baseline-topk-4
 
 export RETRIEVAL_TOP_K=10
-python examples/customer-support-rag/support_agent.py --version candidate-topk-10
+python examples/customer-support-rag/support_agent.py \
+  --dataset-id <agentguard-dataset-id> \
+  --version candidate-topk-10
 ```
 
-Then open AgentGuard and compare the baseline and candidate versions. The useful question is not
-whether every answer is perfect; it is whether the candidate changed behavior in ways that are
-detectable, inspectable, and defensible.
+Then open AgentGuard → Test Suites → choose baseline/candidate → Evaluate. The useful question is
+not whether every answer is perfect; it is whether the candidate changed behavior in ways that are
+detectable, inspectable, and defensible from stored evidence.
+
+If you run without `--dataset-id`, the app still records useful traces, but AgentGuard cannot pair
+those traces to dashboard test cases for release comparison.
 
 ## Local Smoke Test Without Provider Calls
 

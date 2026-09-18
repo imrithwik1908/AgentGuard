@@ -2,7 +2,7 @@ import { ApiUnavailable } from "@/components/api-unavailable";
 import { EmptyState } from "@/components/empty-state";
 import { MetricCard } from "@/components/metric-card";
 import { TraceTable } from "@/components/trace-table";
-import { listProjects, listTraces, listVersions } from "@/lib/api";
+import { listEvaluations, listProjects, listTraces, listVersions } from "@/lib/api";
 import { summarizeTelemetry } from "@/lib/insights";
 import type { RunStatus, Trace } from "@/lib/types";
 
@@ -28,16 +28,20 @@ export default async function TracesPage({
   let projects;
   let versions;
   let traces;
+  let evaluations;
   try {
     projects = await listProjects();
     const versionsByProject = await Promise.all(projects.map((project) => listVersions(project.id)));
     versions = versionsByProject.flat();
-    traces = await listTraces({
-      projectId: projectId || undefined,
-      versionId: versionId || undefined,
-      status: status || undefined,
-      limit: 100
-    });
+    [traces, evaluations] = await Promise.all([
+      listTraces({
+        projectId: projectId || undefined,
+        versionId: versionId || undefined,
+        status: status || undefined,
+        limit: 100
+      }),
+      listEvaluations({ limit: 200 })
+    ]);
   } catch (error) {
     return (
       <ApiUnavailable
@@ -146,7 +150,7 @@ export default async function TracesPage({
           description="Adjust the filters or run the demo agent to submit telemetry."
         />
       ) : (
-        <TraceTable traces={visibleTraces} projects={projects} versions={versions} />
+        <TraceTable traces={visibleTraces} projects={projects} versions={versions} evaluations={evaluations.items} />
       )}
     </div>
   );

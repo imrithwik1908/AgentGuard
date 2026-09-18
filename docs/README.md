@@ -8,7 +8,7 @@ It answers one product question:
 
 AgentGuard is organized around five verbs:
 
-**Instrument → Test → Evaluate → Investigate → Release**
+**Instrument -> Run -> Evaluate -> Compare -> Diagnose -> Release**
 
 ## Start Here
 
@@ -64,17 +64,18 @@ Implemented:
 - Baseline-vs-candidate comparison in the web app.
 - Regression-first release workflow.
 - Run investigation with trace waterfall and step details.
+- Redis/ARQ evaluation workers with per-case progress and retries.
+- Deterministic and rubric-based LLM evaluator registry.
+- Required-source, expected/forbidden-tool, structured-output, and latency checks.
+- Local Ollama and external OpenAI-compatible judge adapters.
+- Job-scoped paired comparison, failure grouping, and deterministic release policy.
 
-Not implemented yet:
+Not implemented in v1:
 
-- Hosted public deployment.
 - Public PyPI upload.
-- Semantic LLM-judge evaluators.
-- Groundedness and hallucination detection.
-- Retrieval relevance/coverage evaluators.
-- Tool-selection evaluators.
-- AI-assisted failure clustering.
-- Persistent queues or enterprise billing.
+- Embedding-based semantic failure clustering.
+- Automatic integrations beyond OpenAI-compatible chat completions.
+- Counterfactual replay, enterprise RBAC/scaling, or billing.
 
 AgentGuard should never present planned capabilities as if they are already active.
 

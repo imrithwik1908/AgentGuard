@@ -88,19 +88,23 @@ export default async function TraceDetailPage({
         </p>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <div className="rounded-2xl bg-slate-50 p-4">
-            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Run status</div>
-            <div className="mt-2 text-sm font-semibold text-ink-950">{trace.status}</div>
+            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Execution</div>
+            <div className="mt-2 text-sm font-semibold text-ink-950">
+              {trace.status === "OK" ? "✓ Completed successfully" : trace.status}
+            </div>
             <div className="mt-1 text-xs leading-5 text-slate-500">
-              Top-level outcome recorded by the SDK.
+              Whether the application run crashed or completed.
             </div>
           </div>
           <div className="rounded-2xl bg-slate-50 p-4">
-            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">What failed</div>
+            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Behavior</div>
             <div className="mt-2 text-sm font-semibold text-ink-950">
-              {failedChecks[0]?.label ?? (trace.status === "ERROR" ? "Runtime failure" : "No failed check recorded")}
+              {failedChecks.length > 0
+                ? `✕ Failed ${failedChecks.length} evaluation${failedChecks.length === 1 ? "" : "s"}`
+                : "No failed check recorded"}
             </div>
             <div className="mt-1 text-xs leading-5 text-slate-500">
-              First failing check, if AgentGuard has evaluation evidence.
+              Whether the completed output satisfied stored checks.
             </div>
           </div>
           <div className="rounded-2xl bg-slate-50 p-4">
@@ -197,6 +201,7 @@ export default async function TraceDetailPage({
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
           The trace is the recorded sequence of important steps inside this run. A step is one
           recorded operation, such as retrieval, a model call, or a tool call.
+          Step color shows execution health; behavioral checks are shown above.
         </p>
         <div className="mt-5">
           <TraceExplorer trace={trace} project={project} version={version} />

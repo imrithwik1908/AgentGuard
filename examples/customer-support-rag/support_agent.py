@@ -187,6 +187,36 @@ def call_openai_compatible_chat(
     return {"content": choice, "usage": usage, "raw": payload}
 
 
+def agentguard_headers(config: Config) -> dict[str, str]:
+    headers = {"content-type": "application/json"}
+    if config.agentguard_api_key:
+        headers["x-agentguard-api-key"] = config.agentguard_api_key
+    return headers
+
+
+def fetch_agentguard_dataset(config: Config, dataset_id: str) -> list[dict[str, Any]]:
+    req = request.Request(
+        f"{config.agentguard_base_url.rstrip('/')}/api/v1/datasets/{dataset_id}",
+        headers=agentguard_headers(config),
+        method="GET",
+    )
+    with request.urlopen(req, timeout=10) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    cases = []
+    for case in payload.get("cases", []):
+        question = case.get("input", {}).get("question")
+        if not isinstance(question, str):
+            continue
+        cases.append(
+            {
+                "id": case["id"],
+                "name": case["name"],
+                "question": question,
+            }
+        )
+    return cases
+
+
 def answer_question(
     config: Config,
     question: str,
@@ -205,9 +235,9 @@ def answer_question(
     if dataset_case_id is not None:
         trace_input["dataset_case_id"] = dataset_case_id
 
-    with client.trace(
+    @client.trace_run(
         "support-rag-answer",
-        input=trace_input,
+        input_arg="trace_input",
         metadata={
             "app": "customer-support-rag",
             "retrieval_top_k": config.retrieval_top_k,
@@ -215,11 +245,12 @@ def answer_question(
             "llm_model": config.llm_model,
             **({"dataset_case_id": dataset_case_id} if dataset_case_id else {}),
         },
-    ) as trace:
-        with trace.span(
+    )
+    def _run(*, trace_input: dict[str, Any]) -> dict[str, Any]:
+        with client.retrieval(
             "retrieve policy documents",
-            type="RETRIEVER",
-            input={"question": question, "top_k": config.retrieval_top_k},
+            query={"question": question, "top_k": config.retrieval_top_k},
+            metadata={"retriever": "local_keyword_overlap", "top_k": config.retrieval_top_k},
         ) as span:
             documents = retrieve(question, corpus, top_k=config.retrieval_top_k)
             span.set_output({"documents": documents})
@@ -227,10 +258,9 @@ def answer_question(
         tool_result = None
         order_id = extract_order_id(question)
         if order_id:
-            with trace.span(
+            with client.tool(
                 "lookup order status",
-                type="TOOL",
-                input={"order_id": order_id},
+                arguments={"order_id": order_id},
                 metadata={"tool_name": "order_status"},
             ) as span:
                 tool_result = lookup_order_status(order_id)
@@ -240,10 +270,11 @@ def answer_question(
             raise RuntimeError("simulated application failure after retrieval")
 
         messages = build_messages(question, documents, tool_result)
-        with trace.span(
+        with client.llm_call(
             "generate support answer",
-            type="LLM",
             input={"messages": messages, "document_ids": [doc["id"] for doc in documents]},
+            provider="mock" if config.mock_provider else "openai-compatible",
+            model=config.llm_model,
         ) as span:
             if config.mock_provider:
                 completion = mock_chat_completion(question, documents, tool_result)
@@ -261,15 +292,15 @@ def answer_question(
             )
             span.set_output({"answer": completion["content"]})
 
-        result = {
+        return {
             "question": question,
             "answer": completion["content"],
             "retrieved_document_ids": [doc["id"] for doc in documents],
             "tool_result": tool_result,
             "version": config.agentguard_version,
         }
-        trace.set_output(result)
-        return result
+
+    return _run(trace_input=trace_input)
 
 
 def iter_cases(limit: int | None) -> list[dict[str, Any]]:
@@ -281,6 +312,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run the AgentGuard customer-support RAG demo.")
     parser.add_argument("--question", help="Run one question instead of the case file.")
     parser.add_argument("--case-limit", type=int, help="Limit the number of cases to run.")
+    parser.add_argument(
+        "--dataset-id",
+        help=(
+            "Fetch cases from an AgentGuard test suite and attach each dashboard case ID "
+            "to the captured trace."
+        ),
+    )
     parser.add_argument("--version", help="Override AGENTGUARD_VERSION.")
     parser.add_argument("--mock-provider", action="store_true", help="Use a deterministic local provider.")
     parser.add_argument(
@@ -291,11 +329,23 @@ def main() -> int:
     args = parser.parse_args()
     config = Config.from_env(version_override=args.version, mock_provider=args.mock_provider)
 
-    questions = [{"name": "manual", "question": args.question}] if args.question else iter_cases(args.case_limit)
+    if args.question:
+        questions = [{"name": "manual", "question": args.question}]
+    elif args.dataset_id:
+        questions = fetch_agentguard_dataset(config, args.dataset_id)
+        if args.case_limit:
+            questions = questions[: args.case_limit]
+    else:
+        questions = iter_cases(args.case_limit)
     failures = 0
     for case in questions:
         try:
-            result = answer_question(config, case["question"], simulate=args.simulate)
+            result = answer_question(
+                config,
+                case["question"],
+                simulate=args.simulate,
+                dataset_case_id=case.get("id") or case.get("dataset_case_id"),
+            )
         except Exception as exc:
             failures += 1
             print(json.dumps({"case": case["name"], "error": type(exc).__name__, "message": str(exc)}))

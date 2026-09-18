@@ -6,19 +6,46 @@ import { MetricCard } from "@/components/metric-card";
 import { listDatasets, listProjects, listVersions } from "@/lib/api";
 import type { ApplicationVersion, Dataset, Project } from "@/lib/types";
 
-import { createDemoDatasetAction, runDatasetCaseAction } from "./actions";
+import {
+  createDemoDatasetAction,
+  evaluateCandidateAction,
+  runDatasetCaseAction,
+  runDatasetSuiteAction
+} from "./actions";
 
 function projectName(projects: Project[], projectId: string): string {
   return projects.find((project) => project.id === projectId)?.name ?? projectId;
 }
 
 function versionsForProject(versions: ApplicationVersion[], projectId: string) {
-  return versions.filter((version) => version.project_id === projectId);
+  return versions
+    .filter((version) => version.project_id === projectId)
+    .sort((left, right) => Date.parse(left.created_at) - Date.parse(right.created_at));
 }
 
 function caseQuestion(datasetCase: Dataset["cases"][number]): string {
   const question = datasetCase.input.question;
   return typeof question === "string" ? question : JSON.stringify(datasetCase.input);
+}
+
+function expectedBehavior(datasetCase: Dataset["cases"][number]): string {
+  if (datasetCase.expected_substring) return datasetCase.expected_substring;
+  if (datasetCase.expected_output) return JSON.stringify(datasetCase.expected_output);
+  return "No explicit expected behavior stored yet";
+}
+
+function caseChecks(datasetCase: Dataset["cases"][number]): string[] {
+  const checks = [];
+  if (datasetCase.expected_substring || datasetCase.expected_output) checks.push("Answer requirement");
+  if (datasetCase.metadata?.required_sources || datasetCase.metadata?.expected_document_ids) {
+    checks.push("Required source");
+  }
+  if (datasetCase.metadata?.expected_tool || datasetCase.metadata?.expected_tools) {
+    checks.push("Expected tool");
+  }
+  if (datasetCase.metadata?.forbidden_tools) checks.push("Forbidden tool");
+  if (datasetCase.metadata?.latency_budget_ms) checks.push("Latency budget");
+  return checks.length > 0 ? checks : ["Runtime success"];
 }
 
 export default async function DatasetsPage({
@@ -57,9 +84,8 @@ export default async function DatasetsPage({
           <div>
             <h1 className="text-3xl font-semibold text-ink-950">Test Suites</h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-              A test suite is a set of representative cases used to check whether your AI
-              application still behaves correctly after a prompt, model, retrieval, or workflow
-              change.
+              Test suites let you rerun the same expected behaviors after changing prompts, models,
+              retrieval, or agent logic.
             </p>
           </div>
           <div className="rounded-2xl bg-ink-950 px-4 py-3 text-sm text-white">
@@ -137,6 +163,88 @@ export default async function DatasetsPage({
                       {dataset.cases.length} cases
                     </div>
                   </div>
+                  {runnableVersions.length > 0 ? (
+                    <div className="mt-4 grid gap-3 xl:grid-cols-[1fr_1.35fr]">
+                      <form
+                        action={runDatasetSuiteAction}
+                        className="rounded-2xl border border-slate-200 bg-white p-3"
+                      >
+                        {dataset.cases.map((datasetCase) => (
+                          <input key={datasetCase.id} type="hidden" name="case_id" value={datasetCase.id} />
+                        ))}
+                        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          1. Capture runs
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <select
+                            name="application_version_id"
+                            className="rounded-full border border-slate-300 px-3 py-2 text-sm text-ink-950"
+                          >
+                            {runnableVersions.map((version) => (
+                              <option key={version.id} value={version.id}>
+                                {version.version}
+                              </option>
+                            ))}
+                          </select>
+                          <button className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white">
+                            Run suite
+                          </button>
+                        </div>
+                        <p className="mt-2 text-xs leading-5 text-slate-500">
+                          Generates or records application executions for one version.
+                        </p>
+                      </form>
+
+                      <form
+                        action={evaluateCandidateAction}
+                        className="rounded-2xl border border-cyan-200 bg-cyan-50/70 p-3"
+                      >
+                        <input type="hidden" name="dataset_id" value={dataset.id} />
+                        <div className="text-xs font-semibold uppercase tracking-wide text-cyan-700">
+                          2. Evaluate candidate
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <label className="flex items-center gap-2 text-xs text-slate-600">
+                            Baseline
+                            <select
+                              name="baseline_version_id"
+                              className="rounded-full border border-cyan-200 bg-white px-3 py-2 text-sm text-ink-950"
+                              defaultValue={runnableVersions[0]?.id}
+                            >
+                              {runnableVersions.map((version) => (
+                                <option key={version.id} value={version.id}>
+                                  {version.version}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="flex items-center gap-2 text-xs text-slate-600">
+                            Candidate
+                            <select
+                              name="candidate_version_id"
+                              className="rounded-full border border-cyan-200 bg-white px-3 py-2 text-sm text-ink-950"
+                              defaultValue={runnableVersions[1]?.id ?? runnableVersions[0]?.id}
+                            >
+                              {runnableVersions.map((version) => (
+                                <option key={version.id} value={version.id}>
+                                  {version.version}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <button
+                            className="rounded-full bg-cyan-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                            disabled={runnableVersions.length < 2}
+                          >
+                            Evaluate
+                          </button>
+                        </div>
+                        <p className="mt-2 text-xs leading-5 text-slate-600">
+                          AgentGuard runs the suite checks, pairs matching cases, classifies regressions, and updates the release decision.
+                        </p>
+                      </form>
+                    </div>
+                  ) : null}
                 </div>
                 <div className="divide-y divide-slate-100">
                   {dataset.cases.map((datasetCase) => (
@@ -145,9 +253,25 @@ export default async function DatasetsPage({
                         <div className="mt-1 h-10 w-1.5 shrink-0 rounded-full bg-gradient-to-b from-cyan-500 to-emerald-500" />
                         <div>
                           <div className="font-medium text-ink-950">{datasetCase.name}</div>
-                          <div className="mt-1 text-sm text-slate-600">{caseQuestion(datasetCase)}</div>
-                          <div className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
-                            Expected: {datasetCase.expected_substring ?? "none"}
+                          <div className="mt-3 grid gap-3 text-sm md:grid-cols-[1fr_1fr_auto]">
+                            <div>
+                              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Input</div>
+                              <div className="mt-1 text-slate-700">{caseQuestion(datasetCase)}</div>
+                            </div>
+                            <div>
+                              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Expected</div>
+                              <div className="mt-1 text-slate-700">{expectedBehavior(datasetCase)}</div>
+                            </div>
+                            <div>
+                              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Checks</div>
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {caseChecks(datasetCase).map((check) => (
+                                  <span key={check} className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">
+                                    {check}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>

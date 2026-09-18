@@ -17,4 +17,3 @@ def duration_ms(started_at: datetime, ended_at: datetime) -> int:
     if ended < started:
         raise ValueError("ended_at must be greater than or equal to started_at")
     return int((ended - started).total_seconds() * 1000)
-

@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: agentguard
       POSTGRES_PASSWORD: agentguard
     ports:
-      - "5432:5432"
+      - "${AGENTGUARD_POSTGRES_PORT:-55432}:5432"
     volumes:
       - agentguard-postgres:/var/lib/postgresql/data
     healthcheck:
@@ -18,7 +18,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "${AGENTGUARD_REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -37,6 +37,7 @@ services:
       AGENTGUARD_AUTH_REQUIRED: "true"
       AGENTGUARD_EVALUATION_QUEUE_BACKEND: redis
       AGENTGUARD_REDIS_URL: redis://redis:6379/0
+      AGENTGUARD_EMBEDDED_WORKER_ENABLED: ${AGENTGUARD_EMBEDDED_WORKER_ENABLED:-false}
 
       AGENTGUARD_MAX_TRACE_SPANS: 500
       AGENTGUARD_MAX_INGESTION_BYTES: 1048576
@@ -46,11 +47,12 @@ services:
 
       AGENTGUARD_LLM_JUDGE_SCORE_TOLERANCE: 0.05
 
+      AGENTGUARD_JUDGE_PROVIDER: ${AGENTGUARD_JUDGE_PROVIDER:-disabled}
       AGENTGUARD_JUDGE_BASE_URL: ${AGENTGUARD_JUDGE_BASE_URL:-https://api.openai.com/v1}
       AGENTGUARD_JUDGE_API_KEY: ${AGENTGUARD_JUDGE_API_KEY:-}
       AGENTGUARD_JUDGE_MODEL: ${AGENTGUARD_JUDGE_MODEL:-gpt-4o-mini}
 
-      AGENTGUARD_DEMO_SEED_ENABLED: "false"
+      AGENTGUARD_DEMO_SEED_ENABLED: ${AGENTGUARD_DEMO_SEED_ENABLED:-true}
 
     ports:
       - "8000:8000"
@@ -60,11 +62,24 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   worker:
     build:
       context: ./apps/api
-    command: ["sh", "-c", "alembic upgrade head && arq agentguard_api.worker.WorkerSettings"]
+    command: ["arq", "agentguard_api.worker.WorkerSettings"]
 
     environment:
       AGENTGUARD_DATABASE_URL: postgresql+asyncpg://agentguard:agentguard@postgres:5432/agentguard
@@ -79,17 +94,20 @@ services:
 
       AGENTGUARD_LLM_JUDGE_SCORE_TOLERANCE: 0.05
 
+      AGENTGUARD_JUDGE_PROVIDER: ${AGENTGUARD_JUDGE_PROVIDER:-disabled}
       AGENTGUARD_JUDGE_BASE_URL: ${AGENTGUARD_JUDGE_BASE_URL:-https://api.openai.com/v1}
       AGENTGUARD_JUDGE_API_KEY: ${AGENTGUARD_JUDGE_API_KEY:-}
       AGENTGUARD_JUDGE_MODEL: ${AGENTGUARD_JUDGE_MODEL:-gpt-4o-mini}
 
     depends_on:
-      postgres:
+      api:
         condition: service_healthy
       redis:
         condition: service_healthy
 
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   web:
     build:
@@ -97,12 +115,14 @@ services:
 
     environment:
       AGENTGUARD_API_URL: http://api:8000
+      AGENTGUARD_DEMO_SEED_ENABLED: ${AGENTGUARD_DEMO_SEED_ENABLED:-true}
 
     ports:
       - "3000:3000"
 
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   agentguard-postgres:

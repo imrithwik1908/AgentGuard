@@ -11,8 +11,11 @@ import type {
   DatasetCaseRun,
   DatasetList,
   DemoSeedResult,
+  EvaluationJob,
+  EvaluationOrchestrationResponse,
   EvaluationList,
   EvaluationSummary,
+  PairedVersionComparison,
   Project,
   ProviderIntegration,
   ReleaseDecision,
@@ -45,6 +48,25 @@ export class ApiRequestError extends Error {
     this.status = status;
     this.details = details;
   }
+}
+
+function backendErrorMessage(details: unknown, fallback: string): string {
+  if (typeof details === "string" && details) return details;
+  if (!details || typeof details !== "object") return fallback;
+
+  const record = details as Record<string, unknown>;
+  if (typeof record.message === "string") return record.message;
+  if (Array.isArray(record.detail)) {
+    const first = record.detail[0];
+    if (first && typeof first === "object" && typeof (first as { msg?: unknown }).msg === "string") {
+      return (first as { msg: string }).msg;
+    }
+  }
+  if (record.detail && typeof record.detail === "object") {
+    return backendErrorMessage(record.detail, fallback);
+  }
+  if (typeof record.detail === "string") return record.detail;
+  return fallback;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -80,7 +102,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       details = await response.text();
     }
-    throw new ApiRequestError(`AgentGuard API request failed: ${path}`, response.status, details);
+    const backendMessage = backendErrorMessage(
+      details,
+      `AgentGuard API request failed: ${path}`
+    );
+    throw new ApiRequestError(backendMessage, response.status, details);
   }
 
   if (response.status === 204) {
@@ -248,6 +274,38 @@ export async function compareVersions(
   return request<VersionComparison>(`/api/v1/evaluations/compare?${params.toString()}`);
 }
 
+export async function comparePairedVersions(
+  baselineVersionId: string,
+  candidateVersionId: string
+): Promise<PairedVersionComparison> {
+  const params = new URLSearchParams({
+    baseline_version_id: baselineVersionId,
+    candidate_version_id: candidateVersionId
+  });
+  return request<PairedVersionComparison>(`/api/v1/evaluations/compare/paired?${params.toString()}`);
+}
+
+export async function orchestrateEvaluation(input: {
+  dataset_id: string;
+  baseline_version_id: string;
+  candidate_version_id: string;
+  evaluator_names?: string[];
+  request_id?: string;
+}): Promise<EvaluationOrchestrationResponse> {
+  return request<EvaluationOrchestrationResponse>("/api/v1/evaluations/orchestrate", {
+    method: "POST",
+    body: JSON.stringify({
+      ...input,
+      evaluator_names: input.evaluator_names ?? null,
+      request_id: input.request_id ?? null
+    })
+  });
+}
+
+export async function getEvaluationJob(jobId: string): Promise<EvaluationJob> {
+  return request<EvaluationJob>(`/api/v1/evaluations/jobs/${jobId}`);
+}
+
 export async function getReleaseDecision(
   baselineVersionId: string,
   candidateVersionId: string
@@ -281,6 +339,8 @@ export async function createDataset(input: {
     input: Record<string, unknown>;
     expected_output?: unknown;
     expected_substring?: string;
+    expectations?: Record<string, unknown>;
+    evaluators?: string[];
   }>;
 }): Promise<Dataset> {
   return request<Dataset>("/api/v1/datasets", {
@@ -300,6 +360,8 @@ export async function createDatasetCase(
     input: Record<string, unknown>;
     expected_output?: unknown;
     expected_substring?: string;
+    expectations?: Record<string, unknown>;
+    evaluators?: string[];
   }
 ): Promise<DatasetCase> {
   return request<DatasetCase>(`/api/v1/datasets/${datasetId}/cases`, {

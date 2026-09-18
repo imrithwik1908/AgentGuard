@@ -26,6 +26,8 @@ async def read_release_gate(
     minimum_pass_rate: Decimal = Query(default=Decimal("0.8000"), ge=0, le=1),
     maximum_regressions: int = Query(default=0, ge=0),
     allowed_score_drop: Decimal = Query(default=Decimal("0.0000"), ge=0, le=1),
+    minimum_evaluation_coverage: Decimal = Query(default=Decimal("1.0000"), ge=0, le=1),
+    required_evaluator: list[str] | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
@@ -36,6 +38,8 @@ async def read_release_gate(
         minimum_pass_rate=minimum_pass_rate.quantize(Decimal("0.0001")),
         maximum_regressions=maximum_regressions,
         allowed_score_drop=allowed_score_drop.quantize(Decimal("0.0001")),
+        minimum_evaluation_coverage=minimum_evaluation_coverage.quantize(Decimal("0.0001")),
+        required_evaluator_names=required_evaluator or [],
         workspace_id=auth.workspace_id,
     )
     passed = decision.decision == "PASS"

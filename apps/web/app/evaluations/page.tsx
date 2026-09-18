@@ -2,11 +2,13 @@ import Link from "next/link";
 
 import { ApiUnavailable } from "@/components/api-unavailable";
 import { EvaluationStatusBadge } from "@/components/evaluation-status-badge";
-import { listEvaluations, listProjects, listTraces, listVersions } from "@/lib/api";
+import { EvaluationJobProgress } from "@/components/evaluation-job-progress";
+import { getEvaluationJob, listEvaluations, listProjects, listTraces, listVersions } from "@/lib/api";
 import { formatDateTime, formatScore } from "@/lib/format";
 import {
   evaluatorInfo,
   implementedEvaluatorCatalog,
+  isJudgeEvaluator,
   PLANNED_EVALUATORS
 } from "@/lib/product-intelligence";
 
@@ -40,7 +42,15 @@ function resultCopy(evaluationName: string, passed: boolean): string {
     : "The run has a reliability or instrumentation issue.";
 }
 
-export default async function EvaluationsPage() {
+export default async function EvaluationsPage({
+  searchParams
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const query = await searchParams;
+  const jobIds = typeof query.job_ids === "string" ? query.job_ids.split(",").filter(Boolean) : [];
+  const baselineVersionId = typeof query.baseline_version_id === "string" ? query.baseline_version_id : "";
+  const candidateVersionId = typeof query.candidate_version_id === "string" ? query.candidate_version_id : "";
   let evaluations;
   let projects;
   let versions;
@@ -65,9 +75,13 @@ export default async function EvaluationsPage() {
   const versionById = new Map(versions.map((version) => [version.id, version]));
   const traceById = new Map(traces.items.map((trace) => [trace.id, trace]));
   const implemented = implementedEvaluatorCatalog();
+  const recentEvaluations = evaluations.items.slice(0, 25);
+  const jobs = jobIds.length ? await Promise.all(jobIds.map((jobId) => getEvaluationJob(jobId))) : [];
+  const releaseUrl = `/releases?baseline_version_id=${baselineVersionId}&candidate_version_id=${candidateVersionId}`;
 
   return (
     <div className="space-y-8">
+      {jobs.length ? <EvaluationJobProgress jobs={jobs} releaseUrl={releaseUrl} /> : null}
       <section className="surface rounded-[2rem] p-6">
         <div className="text-xs font-medium uppercase tracking-[0.22em] text-cyan-700">
           Evaluate
@@ -98,10 +112,15 @@ export default async function EvaluationsPage() {
               <p className="mt-1 text-xs leading-4 text-slate-500">{categoryDescription(category)}</p>
               <div className="mt-3 space-y-2">
                 {active.length > 0 ? (
-                  active.map((item) => (
-                    <div key={item.name} className="rounded-xl bg-emerald-50 px-3 py-2">
-                      <div className="text-sm font-medium text-emerald-950">{item.name}</div>
-                      <div className="mt-1 text-xs leading-4 text-emerald-800">{item.description}</div>
+                  active.map((item, index) => (
+                    <div key={`${item.name}-${index}`} className="rounded-xl bg-slate-50 px-3 py-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-sm font-medium text-ink-950">{item.name}</div>
+                        <span className="shrink-0 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                          {isJudgeEvaluator(item.name) ? "Judge" : "Deterministic"}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-xs leading-4 text-slate-600">{item.description}</div>
                     </div>
                   ))
                 ) : (
@@ -118,11 +137,10 @@ export default async function EvaluationsPage() {
       <section className="rounded-[2rem] border border-dashed border-slate-300 bg-white/70 p-5">
         <details>
           <summary className="cursor-pointer text-sm font-semibold text-ink-950">
-            Coming next: AI-native evaluators
+            Future analysis capabilities
           </summary>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            These are designed into the product direction but are not presented as active results
-            until the backend implements them.
+            These are not implemented in v1 and never appear as completed evaluation evidence.
           </p>
           <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {PLANNED_EVALUATORS.map((item) => (
@@ -148,9 +166,9 @@ export default async function EvaluationsPage() {
           </Link>
         </div>
 
-        {evaluations.items.length > 0 ? (
+        {recentEvaluations.length > 0 ? (
           <div className="grid gap-3">
-              {evaluations.items.map((evaluation) => {
+              {recentEvaluations.map((evaluation) => {
                 const info = evaluatorInfo(evaluation.evaluator_name);
                 const project = projectById.get(evaluation.project_id);
                 const version = versionById.get(evaluation.application_version_id);
@@ -185,26 +203,33 @@ export default async function EvaluationsPage() {
                       <p className="mt-1 text-sm text-slate-600">
                         {project?.name ?? "Project"} · {version?.version ?? "Version"}
                       </p>
-                      <div className="mt-3 max-w-xl">
-                        <div className="flex items-center justify-between text-xs text-slate-500">
-                          <span>Score</span>
-                          <span>
-                            {formatScore(evaluation.score)}
-                            {evaluation.threshold ? ` / threshold ${formatScore(evaluation.threshold)}` : ""}
-                          </span>
+                      {score !== null && score !== 0 && score !== 1 ? (
+                        <div className="mt-3 max-w-xl">
+                          <div className="flex items-center justify-between text-xs text-slate-500">
+                            <span>Evaluation score</span>
+                            <span>{Math.round(score * 100)} / 100</span>
+                          </div>
+                          <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className={`h-full rounded-full ${
+                                evaluation.passed ? "bg-emerald-500" : "bg-red-500"
+                              }`}
+                              style={{ width: `${Math.round(score * 100)}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
-                          <div
-                            className={`h-full rounded-full ${
-                              evaluation.passed ? "bg-emerald-500" : "bg-red-500"
-                            }`}
-                            style={{ width: `${Math.round((score ?? 0) * 100)}%` }}
-                          />
-                        </div>
-                      </div>
+                      ) : null}
                       <details className="mt-2 text-xs text-slate-500">
                         <summary className="cursor-pointer">Advanced evaluator details</summary>
-                        <div className="mt-1 font-mono">{evaluation.evaluator_name}</div>
+                        <dl className="mt-2 grid gap-1 rounded-xl bg-slate-50 p-3 font-mono">
+                          <div>raw score: {formatScore(evaluation.score)}</div>
+                          <div>threshold: {formatScore(evaluation.threshold)}</div>
+                          <div>evaluator: {evaluation.evaluator_name}</div>
+                          <div>
+                            version: {String(evaluation.metadata.evaluator_version ?? "n/a")}
+                          </div>
+                          <div>method: {String(evaluation.metadata.method ?? "deterministic")}</div>
+                        </dl>
                       </details>
                     </div>
                     <div className="flex items-center gap-3 lg:justify-end">
@@ -222,6 +247,11 @@ export default async function EvaluationsPage() {
                   </div>
                 );
               })}
+            {evaluations.items.length > recentEvaluations.length ? (
+              <p className="pt-2 text-center text-xs text-slate-500">
+                Showing the 25 most recent results.
+              </p>
+            ) : null}
           </div>
         ) : (
           <div className="surface rounded-2xl p-5 text-sm text-slate-600">

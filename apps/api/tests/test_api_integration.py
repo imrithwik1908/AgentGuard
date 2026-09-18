@@ -335,10 +335,7 @@ async def test_trace_ingestion_api_checkpoint_behaviors(api_client):
     paired = paired_response.json()
     assert len(paired["regressed"]) >= 1
     assert paired["regressed"][0]["classification"] == "REGRESSED"
-    assert any(
-        item["evaluator_name"] == "builtin.keyword_coverage"
-        for item in paired["unchanged"]
-    )
+    assert any(item["evaluator_name"] == "builtin.keyword_coverage" for item in paired["unchanged"])
 
     paired_release_response = await api_client.get(
         "/api/v1/evaluations/release-decision",

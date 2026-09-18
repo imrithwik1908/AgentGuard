@@ -187,9 +187,7 @@ async def get_trace(
     stmt = select(Trace).options(selectinload(Trace.spans)).where(Trace.id == trace_id)
     if workspace_id is not None:
         stmt = stmt.join(Project).where(Project.workspace_id == workspace_id)
-    result = await session.execute(
-        stmt
-    )
+    result = await session.execute(stmt)
     trace = result.scalar_one_or_none()
     if trace is None:
         raise NotFoundError("trace was not found", metadata={"trace_id": str(trace_id)})

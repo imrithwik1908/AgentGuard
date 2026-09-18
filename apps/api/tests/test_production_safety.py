@@ -9,9 +9,9 @@ def test_production_refuses_disabled_auth(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_EVALUATION_QUEUE_BACKEND", "redis")
     get_settings.cache_clear()
 
-    from agentguard_api.main import create_app
-
     with pytest.raises(RuntimeError, match="AUTH_REQUIRED"):
+        from agentguard_api.main import create_app
+
         create_app()
 
     get_settings.cache_clear()
@@ -25,9 +25,9 @@ def test_production_refuses_inline_evaluation_queue(monkeypatch):
     monkeypatch.setenv("AGENTGUARD_EVALUATION_QUEUE_BACKEND", "inline")
     get_settings.cache_clear()
 
-    from agentguard_api.main import create_app
-
     with pytest.raises(RuntimeError, match="EVALUATION_QUEUE_BACKEND=redis"):
+        from agentguard_api.main import create_app
+
         create_app()
 
     get_settings.cache_clear()

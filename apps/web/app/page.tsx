@@ -4,7 +4,7 @@ import { ApiUnavailable } from "@/components/api-unavailable";
 import { ProductStatus } from "@/components/product-status";
 import { StatusBadge } from "@/components/status-badge";
 import {
-  compareVersions,
+  comparePairedVersions,
   listEvaluations,
   listProjects,
   listTraces,
@@ -12,13 +12,13 @@ import {
 } from "@/lib/api";
 import { formatPercent } from "@/lib/format";
 import {
-  classifyEvaluationPairs,
   deriveReleaseState,
   findDefaultComparisonPair,
   overallLabel,
   summarizeConfigChanges
 } from "@/lib/product-intelligence";
-import type { EvaluationResult, VersionComparison } from "@/lib/types";
+import { evaluatorInfo, numeric, type RegressionCase } from "@/lib/product-intelligence";
+import type { CaseComparison, EvaluationResult, PairedVersionComparison } from "@/lib/types";
 import { seedDemoAction } from "./actions";
 
 function decisionStyle(label: string) {
@@ -28,6 +28,28 @@ function decisionStyle(label: string) {
   return "border-slate-200 bg-slate-50 text-slate-950";
 }
 
+function simpleCase(item: CaseComparison): RegressionCase {
+  const info = evaluatorInfo(item.evaluator_name);
+  return {
+    key: `${item.dataset_case_id ?? "unknown"}:${item.evaluator_name}`,
+    title: item.dataset_case_id ? "Behavioral test case" : "Unpaired check",
+    summary: item.explanation,
+    baselineEvaluations: [],
+    candidateEvaluations: [],
+    primaryEvaluation: null,
+    failedEvaluations: [],
+    categories: [info.category],
+    baselinePassed: item.baseline_status === "PASS",
+    candidatePassed: item.candidate_status === "PASS",
+    baselineScore: numeric(item.baseline_score),
+    candidateScore: numeric(item.candidate_score),
+    scoreDelta: (numeric(item.candidate_score) ?? 0) - (numeric(item.baseline_score) ?? 0),
+    baselineTrace: null,
+    candidateTrace: null,
+    failureAnalysis: item.failure_analysis
+  };
+}
+
 export default async function HomePage({
   searchParams
 }: {
@@ -35,12 +57,13 @@ export default async function HomePage({
 }) {
   const query = await searchParams;
   const demoError = typeof query.demo_error === "string" ? decodeURIComponent(query.demo_error) : "";
+  const demoSeedEnabled = process.env.AGENTGUARD_DEMO_SEED_ENABLED !== "false";
 
   let projects;
   let versions;
   let traces;
   let evaluations: { items: EvaluationResult[] } = { items: [] };
-  let comparison: VersionComparison | null = null;
+  let comparison: PairedVersionComparison | null = null;
   try {
     projects = await listProjects();
     versions = (await Promise.all(projects.map((project) => listVersions(project.id)))).flat();
@@ -50,7 +73,7 @@ export default async function HomePage({
     ]);
     const defaultPair = findDefaultComparisonPair(projects, versions);
     if (defaultPair) {
-      comparison = await compareVersions(defaultPair.baseline.id, defaultPair.candidate.id);
+      comparison = await comparePairedVersions(defaultPair.baseline.id, defaultPair.candidate.id);
     }
   } catch (error) {
     return (
@@ -62,13 +85,13 @@ export default async function HomePage({
   }
 
   const pair = findDefaultComparisonPair(projects, versions);
-  const buckets = pair
-    ? classifyEvaluationPairs({
-        evaluations: evaluations.items,
-        traces: traces.items,
-        baselineVersionId: pair.baseline.id,
-        candidateVersionId: pair.candidate.id
-      })
+  const buckets = comparison
+    ? {
+        regressed: comparison.regressed.map(simpleCase),
+        improved: comparison.improved.map(simpleCase),
+        unchanged: comparison.unchanged.map(simpleCase),
+        notComparable: comparison.not_comparable.map(simpleCase)
+      }
     : { regressed: [], improved: [], unchanged: [], notComparable: [] };
   const releaseState = deriveReleaseState(buckets, comparison);
   const label = overallLabel(comparison, releaseState);
@@ -112,7 +135,7 @@ export default async function HomePage({
       label: "Catch regressions before release",
       detail:
         buckets.regressed.length > 0
-          ? `${buckets.regressed.length} regressed cases found.`
+          ? `${buckets.regressed.length} regressed case checks found.`
           : "No paired regressions found in the current evidence.",
       ready: Boolean(pair && comparison),
       href: "/releases"
@@ -161,17 +184,17 @@ export default async function HomePage({
             <SignalMetric
               label="Regressions"
               value={String(buckets.regressed.length)}
-              detail="Cases that worked better in the baseline"
+              detail="Paired checks that worked better in the baseline"
             />
             <SignalMetric
               label="Improvements"
               value={String(buckets.improved.length)}
-              detail="Cases that became better in the candidate"
+              detail="Paired checks that became better in the candidate"
             />
             <SignalMetric
               label="Evaluation coverage"
-              value={formatPercent(comparison?.candidate.pass_rate)}
-              detail={`${buckets.notComparable.length} cases still not comparable`}
+              value={formatPercent(comparison?.comparison_coverage)}
+              detail={`${buckets.notComparable.length} case checks still not comparable`}
             />
           </div>
 
@@ -188,11 +211,13 @@ export default async function HomePage({
             >
               SDK quickstart
             </Link>
-            <form action={seedDemoAction}>
-              <button className="rounded-full border border-slate-300 bg-white/75 px-5 py-2.5 text-sm font-medium text-ink-950 hover:border-cyan-400">
-                Load demo data
-              </button>
-            </form>
+            {demoSeedEnabled ? (
+              <form action={seedDemoAction}>
+                <button className="rounded-full border border-slate-300 bg-white/75 px-5 py-2.5 text-sm font-medium text-ink-950 hover:border-cyan-400">
+                  Load demo data
+                </button>
+              </form>
+            ) : null}
           </div>
           {demoError ? (
             <div className="mt-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">

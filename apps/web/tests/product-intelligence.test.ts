@@ -5,6 +5,8 @@ import {
   deriveReleaseState,
   evaluatorInfo,
   findDefaultComparisonPair,
+  implementedEvaluatorCatalog,
+  isJudgeEvaluator,
   summarizeConfigChanges
 } from "@/lib/product-intelligence";
 import type { ApplicationVersion, EvaluationResult, Project, Trace } from "@/lib/types";
@@ -82,6 +84,17 @@ describe("product intelligence helpers", () => {
     expect(evaluatorInfo("builtin.trace_health.latency_budget").name).toBe("Latency budget");
   });
 
+  it("distinguishes judge-backed evaluators from deterministic checks", () => {
+    expect(isJudgeEvaluator("builtin.semantic_correctness")).toBe(true);
+    expect(isJudgeEvaluator("Groundedness")).toBe(true);
+    expect(isJudgeEvaluator("builtin.required_source")).toBe(false);
+  });
+
+  it("deduplicates legacy evaluator aliases in the user-facing catalog", () => {
+    const names = implementedEvaluatorCatalog().map((item) => `${item.category}:${item.name}`);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
   it("finds a default baseline/candidate pair by version age", () => {
     const pair = findDefaultComparisonPair(
       [project],
@@ -100,6 +113,23 @@ describe("product intelligence helpers", () => {
 
     expect(changes[0].label).toBe("Model configuration");
     expect(changes[0].evidence).toBe("observed");
+  });
+
+  it("renders configuration objects as field-level changes instead of raw JSON", () => {
+    const baseline = version("v1", "2026-09-12T00:00:00.000Z");
+    const candidate = version("v2", "2026-09-13T00:00:00.000Z");
+    baseline.retrieval_config = { top_k: 4, strategy: "keyword" };
+    candidate.retrieval_config = { top_k: 10, strategy: "keyword" };
+
+    expect(summarizeConfigChanges(baseline, candidate)).toEqual([
+      {
+        label: "Retrieval configuration",
+        field: "top_k",
+        before: "4",
+        after: "10",
+        evidence: "observed"
+      }
+    ]);
   });
 
   it("buckets paired behavioral cases into regressions", () => {

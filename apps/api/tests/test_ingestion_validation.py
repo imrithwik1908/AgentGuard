@@ -74,4 +74,3 @@ def test_settings_expose_payload_safety_limits():
 
     assert settings.max_trace_spans == 5
     assert settings.max_ingestion_bytes == 20_000
-

@@ -37,8 +37,7 @@ DEMO_DOCUMENTS = [
         "id": "doc-phase-one",
         "title": "Phase 1",
         "body": (
-            "Phase 1 focuses on projects, versions, whole-trace ingestion, "
-            "and trace exploration."
+            "Phase 1 focuses on projects, versions, whole-trace ingestion, and trace exploration."
         ),
     },
     {
@@ -128,13 +127,33 @@ async def import_dataset(
 
 
 def _case_from_payload(dataset_id: UUID, payload: DatasetCaseCreate) -> DatasetCase:
+    metadata = dict(payload.metadata)
+    if payload.expectations:
+        expectations = payload.expectations
+        if answer_requirement := expectations.get("answer_requirement"):
+            metadata.setdefault("semantic_requirement", answer_requirement)
+        if required_sources := expectations.get("required_sources"):
+            metadata.setdefault("required_sources", required_sources)
+            metadata.setdefault("expected_document_ids", required_sources)
+        if expected_tool := expectations.get("expected_tool"):
+            metadata.setdefault("expected_tool", expected_tool)
+            metadata.setdefault("expected_tools", [expected_tool])
+        if forbidden_tools := expectations.get("forbidden_tools"):
+            metadata.setdefault("forbidden_tools", forbidden_tools)
+        if latency_budget_ms := expectations.get("latency_budget_ms"):
+            metadata.setdefault("latency_budget_ms", latency_budget_ms)
+        if json_schema := expectations.get("json_schema"):
+            metadata.setdefault("json_schema", json_schema)
+    if payload.evaluators:
+        metadata.setdefault("evaluators", payload.evaluators)
     return DatasetCase(
         dataset_id=dataset_id,
         name=payload.name,
         input=payload.input,
         expected_output=payload.expected_output,
-        expected_substring=payload.expected_substring,
-        meta=payload.metadata,
+        expected_substring=payload.expected_substring
+        or payload.expectations.get("answer_requirement"),
+        meta=metadata,
     )
 
 
@@ -179,9 +198,7 @@ async def get_dataset(
     )
     if workspace_id is not None:
         stmt = stmt.where(Project.workspace_id == workspace_id)
-    result = await session.execute(
-        stmt
-    )
+    result = await session.execute(stmt)
     dataset = result.scalar_one_or_none()
     if dataset is None:
         raise NotFoundError("dataset was not found", metadata={"dataset_id": str(dataset_id)})
@@ -233,8 +250,10 @@ async def run_dataset_case(
         .where(DatasetCase.id == case_id)
     )
     if workspace_id is not None:
-        query = query.join(Dataset, Dataset.id == DatasetCase.dataset_id).join(Project).where(
-            Project.workspace_id == workspace_id
+        query = (
+            query.join(Dataset, Dataset.id == DatasetCase.dataset_id)
+            .join(Project)
+            .where(Project.workspace_id == workspace_id)
         )
     result = await session.execute(query)
     case = result.scalar_one_or_none()
