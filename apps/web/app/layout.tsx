@@ -10,6 +10,8 @@ export const metadata: Metadata = {
   description: "Reliability control plane for LLM, RAG, and agentic applications"
 };
 
+export const maxDuration = 60;
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
 

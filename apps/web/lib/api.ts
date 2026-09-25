@@ -1,5 +1,10 @@
 import "server-only";
 
+import {
+  apiConnectionMessage,
+  mayRetryRequest,
+  requestTimeoutMs
+} from "./api-resilience";
 import { getAccessToken } from "./session";
 import type {
   ApplicationVersion,
@@ -32,7 +37,8 @@ function normalizeApiUrl(value: string): string {
 }
 
 const API_URL = normalizeApiUrl(process.env.AGENTGUARD_API_URL ?? "http://localhost:8000");
-const REQUEST_TIMEOUT_MS = 10000;
+const REQUEST_TIMEOUT_MS = requestTimeoutMs(process.env.AGENTGUARD_REQUEST_TIMEOUT_MS);
+const COLD_START_RETRY_DELAY_MS = 1_250;
 
 export function getApiUrl(): string {
   return API_URL;
@@ -75,7 +81,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   const token = await getAccessToken();
   try {
-    response = await fetch(`${API_URL}${path}`, {
+    const requestInit: RequestInit = {
       ...init,
       headers: {
         "content-type": "application/json",
@@ -84,10 +90,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       },
       signal: controller.signal,
       cache: "no-store"
-    });
+    };
+    response = await fetch(`${API_URL}${path}`, requestInit);
+
+    if (mayRetryRequest(init?.method, response.status)) {
+      await new Promise((resolve) => setTimeout(resolve, COLD_START_RETRY_DELAY_MS));
+      response = await fetch(`${API_URL}${path}`, requestInit);
+    }
   } catch (error) {
+    const timedOut = error instanceof Error && error.name === "AbortError";
     throw new ApiRequestError(
-      `AgentGuard API is unreachable at ${API_URL}`,
+      apiConnectionMessage(timedOut),
       0,
       error instanceof Error ? error.message : String(error)
     );

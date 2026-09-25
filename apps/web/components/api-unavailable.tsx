@@ -1,10 +1,10 @@
 import Link from "next/link";
 
 import { logoutAction } from "@/app/auth/actions";
-import { getApiUrl } from "@/lib/api";
+import { RetryButton } from "@/components/retry-button";
 
 export function ApiUnavailable({
-  title = "AgentGuard API is not reachable",
+  title = "AgentGuard is waking up",
   detail
 }: {
   title?: string;
@@ -15,38 +15,28 @@ export function ApiUnavailable({
   );
   const displayTitle = authenticationRequired ? "Sign in again" : title;
   return (
-    <section className="rounded border border-amber-200 bg-amber-50 p-6 shadow-panel">
+    <section className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-panel">
+      <div className="h-1 bg-amber-400" />
+      <div className="p-6 sm:p-8">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-3xl">
-          <h1 className="text-lg font-semibold text-amber-950">{displayTitle}</h1>
-          <p className="mt-2 text-sm leading-6 text-amber-900">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
+            Connection status
+          </p>
+          <h1 className="mt-2 text-xl font-semibold text-slate-950">{displayTitle}</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
             {authenticationRequired ? (
               "Your saved session is no longer accepted by the API. Sign in again to continue."
             ) : (
-              <>
-                The web UI is running, but the backend did not respond at{" "}
-                <code className="rounded bg-amber-100 px-1 py-0.5">{getApiUrl()}</code>.
-              </>
+              "The dashboard is online. Its free demo API may need up to a minute to resume after a period of inactivity. Your data is not affected."
             )}
           </p>
-          {!authenticationRequired ? (
-            <div className="mt-4 rounded border border-amber-200 bg-white/70 p-3">
-              <div className="text-xs font-medium uppercase tracking-wide text-amber-700">
-                Start the local backend
-              </div>
-              <pre className="mt-2 text-xs leading-5 text-amber-950">
-                {`docker compose up --build
-
-# or run API + Postgres locally, then refresh this page`}
-              </pre>
-            </div>
-          ) : null}
           {detail ? (
             <details className="mt-4">
-              <summary className="cursor-pointer text-sm font-medium text-amber-900">
+              <summary className="cursor-pointer text-sm font-medium text-slate-600">
                 Technical details
               </summary>
-              <pre className="mt-2 rounded bg-amber-100 p-3 text-xs text-amber-950">
+              <pre className="mt-2 max-w-full overflow-x-auto rounded-lg bg-slate-100 p-3 text-xs text-slate-700">
                 {detail}
               </pre>
             </details>
@@ -59,13 +49,9 @@ export function ApiUnavailable({
             </button>
           </form>
         ) : (
-          <Link
-            href="/projects"
-            className="inline-flex rounded bg-amber-900 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800"
-          >
-            Retry
-          </Link>
+          <RetryButton />
         )}
+      </div>
       </div>
     </section>
   );
