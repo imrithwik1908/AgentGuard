@@ -9,7 +9,7 @@ from agentguard.integrations.openai import instrument_openai
 from openai import OpenAI
 
 ag = AgentGuard(
-    base_url="https://your-agentguard-api.example.com",
+    base_url="https://agentguard-api-7evp.onrender.com",
     project="support-agent",
     version="candidate-v2",
     api_key=os.environ["AGENTGUARD_API_KEY"],
@@ -31,16 +31,6 @@ def answer(question: str) -> str:
         ],
     )
     return response.choices[0].message.content`;
-
-const publish = `cd packages/python-sdk
-rm -rf dist build *.egg-info
-python -m pip install -U build twine
-python -m build
-python -m twine check dist/*
-
-TWINE_USERNAME=__token__ \\
-TWINE_PASSWORD="pypi-your-token" \\
-python -m twine upload dist/*`;
 
 export default function DocsPage() {
   return (
@@ -65,8 +55,7 @@ export default function DocsPage() {
               {install}
             </code>
             <p className="mt-3 text-sm leading-5 text-slate-600">
-              PyPI release is prepared but not published yet. Install directly from GitHub for now.
-              Distribution name: <strong>agentguard-reliability</strong>. Import name:{" "}
+              Install the SDK directly from the public repository, then import it as{" "}
               <strong>agentguard</strong>.
             </p>
           </div>
@@ -81,8 +70,7 @@ export default function DocsPage() {
               ["Workflow", "#workflow"],
               ["SDK", "#sdk"],
               ["Web app", "#web-app"],
-              ["Reference", "#reference"],
-              ["Publishing", "#publishing"]
+              ["Reference", "#reference"]
             ].map(([label, href]) => (
               <a key={href} className="block rounded-full px-3 py-2 text-slate-600 hover:bg-white hover:text-ink-950" href={href}>
                 {label}
@@ -149,7 +137,7 @@ export default function DocsPage() {
                 ["Releases", "Baseline-vs-candidate comparison and release decision."],
                 ["Runs", "Debugging surface for one execution."],
                 ["Setup", "Projects and versions."],
-                ["Docs", "SDK, concepts, references, and publishing guidance."]
+                ["Docs", "SDK setup, product concepts, and reference material."]
               ]}
             />
           </DocSection>
@@ -170,14 +158,6 @@ export default function DocsPage() {
             </div>
           </DocSection>
 
-          <DocSection
-            id="publishing"
-            eyebrow="PyPI"
-            title="Publish the SDK"
-            body="PyPI publishing requires a PyPI account token. Build and validate the package first, then upload with twine."
-          >
-            <CodeBlock code={publish} />
-          </DocSection>
         </div>
       </section>
     </div>

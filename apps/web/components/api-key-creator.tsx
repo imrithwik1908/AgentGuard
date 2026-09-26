@@ -37,10 +37,6 @@ export function ApiKeyCreator({
             Use this key from your IDE, notebook, server, or CI job so the AgentGuard SDK can
             submit runs for this workspace.
           </p>
-          <div className="mt-5 rounded-2xl border border-cyan-100 bg-cyan-50/80 p-4 text-xs leading-5 text-cyan-950">
-            Coming later: a device-flow SDK command that opens the browser, waits for login, and
-            returns a scoped key. Today, create the key here and set it as an environment variable.
-          </div>
         </div>
 
         <div className="p-6">

@@ -196,27 +196,6 @@ const EVALUATOR_CATALOG: Record<string, EvaluatorInfo> = {
   }
 };
 
-export const PLANNED_EVALUATORS: EvaluatorInfo[] = [
-  {
-    category: "Answer Quality",
-    name: "Hallucination pattern analysis",
-    implemented: false,
-    description: "Future analysis for recurring unsupported-claim patterns across evaluation runs."
-  },
-  {
-    category: "Retrieval",
-    name: "Semantic retrieval coverage",
-    implemented: false,
-    description: "Future embedding-assisted analysis for evidence coverage beyond explicit source IDs."
-  },
-  {
-    category: "Agent Behavior",
-    name: "Trajectory policy compliance",
-    implemented: false,
-    description: "Future evaluator for multi-step workflow and policy constraints."
-  }
-];
-
 export function evaluatorInfo(evaluatorName: string): EvaluatorInfo {
   return (
     EVALUATOR_CATALOG[evaluatorName] ?? {

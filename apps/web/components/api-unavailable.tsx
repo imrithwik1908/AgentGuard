@@ -28,7 +28,7 @@ export function ApiUnavailable({
             {authenticationRequired ? (
               "Your saved session is no longer accepted by the API. Sign in again to continue."
             ) : (
-              "The dashboard is online. Its free demo API may need up to a minute to resume after a period of inactivity. Your data is not affected."
+              "AgentGuard could not reach the API. Wait a moment and try again; your stored data is not affected."
             )}
           </p>
           {detail ? (

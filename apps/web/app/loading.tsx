@@ -10,8 +10,7 @@ export default function Loading() {
         </div>
         <h1 className="mt-6 text-xl font-semibold text-slate-950">Connecting to AgentGuard</h1>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          Loading your workspace and evaluation evidence. After inactivity, the free demo API may
-          take up to a minute to wake.
+          Loading your workspace and evaluation evidence. This can take a moment after inactivity.
         </p>
       </div>
     </section>

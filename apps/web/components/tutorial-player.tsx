@@ -8,49 +8,42 @@ const steps = [
     title: "Connect an AI application",
     action: "Create a project and install the SDK",
     userView: "Your app starts sending runs to AgentGuard without changing the user-facing app flow.",
-    backend: ["Create project/version", "SDK opens trace context", "SDK records spans", "POST /api/v1/traces"],
     focus: "Setup"
   },
   {
     title: "Create or use a test suite",
     action: "Add expected behaviors",
     userView: "A suite stores important questions, requirements, and expected outputs to protect.",
-    backend: ["POST /api/v1/datasets", "Store cases", "Validate expectations", "Make cases runnable"],
     focus: "Test Suites"
   },
   {
     title: "Establish a baseline",
     action: "Run checks on the trusted version",
     userView: "AgentGuard stores pass/fail results and scores for the version you trust today.",
-    backend: ["Run dataset case", "Create trace", "Store evaluation", "Summarize version quality"],
     focus: "Baseline"
   },
   {
     title: "Evaluate a candidate change",
     action: "Run the same suite on the changed version",
     userView: "Now AgentGuard can compare behavior instead of showing isolated metrics.",
-    backend: ["Resolve candidate version", "Run same cases", "Persist new traces", "Persist new evaluations"],
     focus: "Candidate"
   },
   {
     title: "Review regressions first",
     action: "Open Releases",
     userView: "Regressed cases appear before averages, because failures decide whether the change is safe.",
-    backend: ["Pair evaluations by case", "Bucket regressed/improved/unchanged", "Calculate deltas", "Link failed runs"],
     focus: "Regressions"
   },
   {
     title: "Investigate one failure",
     action: "Open the failed run",
     userView: "You see what failed first, then drill into the waterfall and span details only if needed.",
-    backend: ["GET /api/v1/traces/{id}", "Load spans", "Build waterfall", "Expose raw payloads in details"],
     focus: "Investigation"
   },
   {
     title: "Make a release decision",
     action: "Ship, review, or block",
-    userView: "The release decision uses stored evidence and clear thresholds, not vibes.",
-    backend: ["Aggregate summaries", "Apply thresholds", "Return PASS/REVIEW/BLOCK", "CI can consume same decision"],
+    userView: "The release decision uses stored evidence and configured thresholds.",
     focus: "Decision"
   }
 ];
@@ -61,7 +54,7 @@ export function TutorialPlayer() {
   const progress = useMemo(() => ((index + 1) / steps.length) * 100, [index]);
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
+    <div className="mx-auto max-w-5xl">
       <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-panel">
         <div className="border-b border-slate-200 bg-slate-50 p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -142,40 +135,6 @@ export function TutorialPlayer() {
           </div>
         </div>
       </section>
-
-      <aside className="console-surface rounded-[2rem] p-5 text-white shadow-panel">
-        <div className="text-xs font-medium uppercase tracking-[0.22em] text-emerald-200">
-          Backend grunt work
-        </div>
-        <h2 className="mt-2 text-2xl font-semibold">What AgentGuard is doing underneath</h2>
-        <div className="mt-6 space-y-4">
-          {step.backend.map((item, itemIndex) => (
-            <div key={item} className="flex gap-3">
-              <div className="relative flex w-8 justify-center">
-                <div className="grid h-8 w-8 place-items-center rounded-full border border-emerald-300/60 bg-emerald-300/10 text-xs text-emerald-100">
-                  {itemIndex + 1}
-                </div>
-                {itemIndex < step.backend.length - 1 ? (
-                  <div className="absolute top-8 h-8 w-px bg-emerald-300/30" />
-                ) : null}
-              </div>
-              <div className="pt-1">
-                <div className="text-sm font-medium">{item}</div>
-                <div className="mt-1 h-1.5 w-40 overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full rounded-full bg-emerald-300 transition-all"
-                    style={{ width: `${Math.max(28, (itemIndex + 1) * 24)}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-        <p className="mt-6 text-sm leading-6 text-slate-300">
-          Backend mechanics are shown as supporting context. The main path stays centered on the
-          user's release question: did the change improve behavior, regress, or need review?
-        </p>
-      </aside>
     </div>
   );
 }

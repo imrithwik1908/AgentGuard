@@ -109,9 +109,9 @@ export default async function DatasetsPage({
       <section className="surface rounded-[2rem] p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-ink-950">Create a demo regression suite</h2>
+            <h2 className="text-sm font-semibold text-ink-950">Create a starter suite</h2>
             <p className="mt-1 text-sm text-slate-600">
-              Use this to populate AgentGuard with deterministic behavior checks for the demo agent.
+              Add a small set of example checks to an existing project.
             </p>
           </div>
           {projects.length > 0 ? (
@@ -305,7 +305,7 @@ export default async function DatasetsPage({
       ) : (
         <EmptyState
           title="No test suites yet"
-          description="Create a demo test suite to start measuring whether an agent version still satisfies expected behaviors."
+          description="Create a starter suite to begin checking whether a version still satisfies expected behaviors."
         />
       )}
     </div>

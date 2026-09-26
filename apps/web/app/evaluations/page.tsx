@@ -8,8 +8,7 @@ import { formatDateTime, formatScore } from "@/lib/format";
 import {
   evaluatorInfo,
   implementedEvaluatorCatalog,
-  isJudgeEvaluator,
-  PLANNED_EVALUATORS
+  isJudgeEvaluator
 } from "@/lib/product-intelligence";
 
 const CATEGORIES = ["Answer Quality", "Retrieval", "Agent Behavior", "Operational"] as const;
@@ -134,32 +133,11 @@ export default async function EvaluationsPage({
         })}
       </section>
 
-      <section className="rounded-[2rem] border border-dashed border-slate-300 bg-white/70 p-5">
-        <details>
-          <summary className="cursor-pointer text-sm font-semibold text-ink-950">
-            Future analysis capabilities
-          </summary>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            These are not implemented in v1 and never appear as completed evaluation evidence.
-          </p>
-          <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {PLANNED_EVALUATORS.map((item) => (
-              <div key={item.name} className="rounded-xl bg-slate-50 px-3 py-2">
-                <div className="text-sm font-medium text-slate-700">{item.name}</div>
-                <div className="mt-1 text-xs leading-4 text-slate-500">{item.description}</div>
-              </div>
-            ))}
-          </div>
-        </details>
-      </section>
-
       <section className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-ink-950">Recent check results</h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Human names first. Internal evaluator IDs are kept secondary for debugging.
-            </p>
+            <p className="mt-1 text-sm text-slate-600">Latest evidence produced by your checks.</p>
           </div>
           <Link className="text-sm font-medium text-ink-800 hover:underline" href="/datasets">
             Run test suites

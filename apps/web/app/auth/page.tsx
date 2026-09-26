@@ -154,12 +154,6 @@ export default async function AuthPage({
               </button>
             </form>
           )}
-
-          <div className="mt-6 rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4 text-xs leading-5 text-cyan-950">
-            Current flow: sign in here, open Setup, create an SDK API key, and copy it into your
-            IDE or application runtime. Coming later: a device-flow SDK command that opens the
-            browser, waits for login, and returns a scoped key automatically.
-          </div>
         </div>
       </section>
     </div>

@@ -21,9 +21,9 @@ export async function createDemoDatasetAction(formData: FormData) {
   try {
     await createDataset({
       project_id: projectId,
-      name: "Demo Agent Golden Set",
-      slug: `demo-agent-golden-${Date.now()}`,
-      description: "Deterministic questions the demo agent should keep answering correctly.",
+      name: "AgentGuard Starter Suite",
+      slug: `agentguard-starter-${Date.now()}`,
+      description: "Example behaviors for verifying an instrumented AgentGuard application.",
       cases: [
         {
           name: "explains-agentguard",
@@ -31,14 +31,14 @@ export async function createDemoDatasetAction(formData: FormData) {
           expected_substring: "captures traces"
         },
         {
-          name: "explains-phase-one",
-          input: { question: "What does Phase 1 focus on?" },
-          expected_substring: "whole-trace ingestion"
+          name: "supports-ai-application-types",
+          input: { question: "What types of AI applications does AgentGuard support?" },
+          expected_substring: "LLM, RAG, and agentic applications"
         },
         {
-          name: "intentional-regression-check",
-          input: { question: "What is AgentGuard?" },
-          expected_substring: "this phrase will not appear"
+          name: "records-run-evidence",
+          input: { question: "How does AgentGuard record application behavior?" },
+          expected_substring: "captures traces"
         }
       ]
     });

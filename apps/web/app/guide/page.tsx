@@ -18,7 +18,7 @@ export default function GuidePage() {
       <section className="grid gap-4 lg:grid-cols-3">
         <Step
           title="1. Connect the app"
-          body="Install the Python SDK in an app or run the demo agent. AgentGuard records each execution as a run with internal steps for debugging."
+          body="Install the Python SDK and connect it with an API key. AgentGuard records each execution as a run with steps for debugging."
         />
         <Step
           title="2. Define expectations"
@@ -36,10 +36,10 @@ export default function GuidePage() {
 {`from agentguard import AgentGuard
 
 client = AgentGuard(
-    base_url="https://your-agentguard-api.example.com",
+    base_url="https://agentguard-api-7evp.onrender.com",
     project="research-agent",
     version="v1",
-    api_key="ag_..."  # optional unless auth is enabled
+    api_key="ag_..."
 )
 
 with client.trace("answer-question", input={"question": question}) as trace:
@@ -51,23 +51,14 @@ with client.trace("answer-question", input={"question": question}) as trace:
         </pre>
       </section>
 
-      <section className="surface rounded-[2rem] p-6">
-        <h2 className="text-lg font-semibold text-ink-950">What is real today?</h2>
-        <ul className="mt-3 space-y-2 text-sm text-slate-700">
-          <li>Run ingestion, storage, hierarchy, timing waterfall, and SDK instrumentation are real.</li>
-          <li>Test suites, deterministic evaluators, release decisions, and CI gate APIs are real.</li>
-          <li>Provider integrations are configurable records; live external judge calls need real secrets and adapter policy.</li>
-          <li>No billing, marketplace, or enterprise admin layer is claimed.</li>
-        </ul>
-        <div className="mt-5 flex flex-wrap gap-3">
-          <Link className="rounded-full bg-ink-900 px-4 py-2 text-sm font-medium text-white" href="/datasets">
-            Run test suites
-          </Link>
-          <Link className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700" href="/evaluations">
-            Review releases
-          </Link>
-        </div>
-      </section>
+      <div className="flex flex-wrap gap-3">
+        <Link className="rounded-full bg-ink-900 px-4 py-2 text-sm font-medium text-white" href="/datasets">
+          Open test suites
+        </Link>
+        <Link className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700" href="/releases">
+          Review releases
+        </Link>
+      </div>
     </div>
   );
 }
