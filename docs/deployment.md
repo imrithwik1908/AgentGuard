@@ -26,7 +26,7 @@ AGENTGUARD_API_URL=https://agentguard-api-7evp.onrender.com
 AGENTGUARD_DEMO_SEED_ENABLED=true
 ```
 
-The canonical public application is `https://web-roan-eight-81.vercel.app`. Vercel serves the
+The canonical public application is `https://agentguard-platform.vercel.app`. Vercel serves the
 interface without Render's free-service wake screen. The web application allows up to 60 seconds
 for the API to resume and presents a recoverable AgentGuard loading state during that interval.
 
@@ -47,7 +47,7 @@ as a separate service so local development exercises the production-style proces
 ```text
 AGENTGUARD_ENVIRONMENT=production
 AGENTGUARD_AUTH_REQUIRED=true
-AGENTGUARD_WEB_APP_URL=https://web-roan-eight-81.vercel.app
+AGENTGUARD_WEB_APP_URL=https://agentguard-platform.vercel.app
 AGENTGUARD_EVALUATION_QUEUE_BACKEND=redis
 AGENTGUARD_EMBEDDED_WORKER_ENABLED=true
 AGENTGUARD_DEMO_SEED_ENABLED=true
