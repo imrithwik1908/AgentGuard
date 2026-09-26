@@ -6,6 +6,15 @@ platform for LLM, RAG, and agentic systems.
 AgentGuard v1 is a portfolio/research-grade AI engineering platform, not an enterprise replacement
 for mature commercial observability systems.
 
+## Live Product
+
+- Web application: [agentguard-platform.vercel.app](https://agentguard-platform.vercel.app)
+- API documentation: [agentguard-api-7evp.onrender.com/docs](https://agentguard-api-7evp.onrender.com/docs)
+
+The public frontend remains available continuously. The free hosted API may take up to a minute to
+resume after inactivity; the web application keeps users in an AgentGuard loading state while it
+wakes.
+
 ## What Problem It Solves
 
 Changing a prompt, model, retriever, tool, or workflow can improve average behavior while breaking
