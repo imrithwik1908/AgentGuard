@@ -3,19 +3,34 @@
 ## Production Topology
 
 ```text
-Browser -> Next.js web -> FastAPI API + embedded worker -> PostgreSQL
+Browser -> Vercel Next.js web -> Render FastAPI API + embedded worker -> PostgreSQL
                                   |
                                   +-> Redis/Key Value
                                   |
                                   +-> optional judge provider
 ```
 
-[`render.yaml`](../render.yaml) defines the zero-cost portfolio topology: web, API, PostgreSQL, and
-Redis. The API enqueues evaluation jobs and returns `202`; an embedded background worker claims the
-persisted jobs and records per-case progress plus terminal `COMPLETED`, `PARTIAL`, or `FAILED`
-status. A paid deployment should move the same worker loop into a dedicated worker service.
+[`render.yaml`](../render.yaml) defines the stateful zero-cost portfolio topology: API, PostgreSQL,
+and Redis. The public Next.js frontend is deployed separately to Vercel so it remains available
+while the free Render API is idle. The API enqueues evaluation jobs and returns `202`; an embedded
+background worker claims the persisted jobs and records per-case progress plus terminal
+`COMPLETED`, `PARTIAL`, or `FAILED` status. A paid deployment should move the same worker loop into
+a dedicated worker service.
 
-## Render Blueprint
+## Vercel Frontend
+
+Deploy `apps/web` as a Vercel project and configure:
+
+```text
+AGENTGUARD_API_URL=https://agentguard-api-7evp.onrender.com
+AGENTGUARD_DEMO_SEED_ENABLED=true
+```
+
+The canonical public application is `https://web-roan-eight-81.vercel.app`. Vercel serves the
+interface without Render's free-service wake screen. The web application allows up to 60 seconds
+for the API to resume and presents a recoverable AgentGuard loading state during that interval.
+
+## Render Backend Blueprint
 
 1. Push the repository to GitHub.
 2. In Render, create a Blueprint from `render.yaml`.
@@ -32,6 +47,7 @@ as a separate service so local development exercises the production-style proces
 ```text
 AGENTGUARD_ENVIRONMENT=production
 AGENTGUARD_AUTH_REQUIRED=true
+AGENTGUARD_WEB_APP_URL=https://web-roan-eight-81.vercel.app
 AGENTGUARD_EVALUATION_QUEUE_BACKEND=redis
 AGENTGUARD_EMBEDDED_WORKER_ENABLED=true
 AGENTGUARD_DEMO_SEED_ENABLED=true

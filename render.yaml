@@ -27,6 +27,8 @@ services:
         value: production
       - key: AGENTGUARD_AUTH_REQUIRED
         value: "true"
+      - key: AGENTGUARD_WEB_APP_URL
+        value: https://web-roan-eight-81.vercel.app
       - key: AGENTGUARD_EVALUATION_QUEUE_BACKEND
         value: redis
       - key: AGENTGUARD_EMBEDDED_WORKER_ENABLED
@@ -49,21 +51,6 @@ services:
         value: gpt-4o-mini
       - key: AGENTGUARD_JUDGE_API_KEY
         sync: false
-
-  - type: web
-    name: agentguard-web
-    runtime: docker
-    rootDir: apps/web
-    plan: free
-    region: oregon
-    envVars:
-      - key: AGENTGUARD_API_URL
-        fromService:
-          name: agentguard-api
-          type: web
-          property: hostport
-      - key: AGENTGUARD_DEMO_SEED_ENABLED
-        value: "true"
 
 databases:
   - name: agentguard-postgres

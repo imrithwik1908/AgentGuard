@@ -6,6 +6,7 @@ __pycache__/
 .mypy_cache/
 node_modules/
 .next/
+.vercel/
 dist/
 build/
 *.egg-info/

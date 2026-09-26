@@ -102,7 +102,7 @@ def create_app() -> FastAPI:
             "status": "ok",
             "message": "AgentGuard backend is running. Use the web app for the product UI.",
             "links": {
-                "web_app": "https://agentguard-web-wijr.onrender.com",
+                "web_app": settings.web_app_url,
                 "health": "/healthz",
                 "api_docs": "/docs",
                 "openapi": "/openapi.json",

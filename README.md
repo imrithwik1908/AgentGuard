@@ -206,9 +206,9 @@ evaluation jobs, evaluator provenance, paired comparison semantics, and release 
 
 ## Deployment
 
-[`render.yaml`](render.yaml) defines web, API, worker, PostgreSQL, and Redis services. See
-[`docs/deployment.md`](docs/deployment.md) for the exact topology, free-demo compromise, environment
-variables, migrations, and smoke test.
+The public Next.js frontend runs on Vercel. [`render.yaml`](render.yaml) defines the FastAPI,
+PostgreSQL, and Redis services on Render. See [`docs/deployment.md`](docs/deployment.md) for the
+exact topology, free-demo compromise, environment variables, migrations, and smoke test.
 
 ## Screenshots / Demo
 
