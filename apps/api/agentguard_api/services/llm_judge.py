@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Any
 from urllib import error, request
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic import ValidationError as PydanticValidationError
 
 from agentguard_api.core.config import Settings
@@ -17,7 +17,14 @@ class JudgeVerdict(BaseModel):
     score: Decimal = Field(ge=0, le=1)
     passed: bool
     explanation: str = Field(min_length=1, max_length=1200)
-    evidence: list[str] = Field(default_factory=list)
+    evidence: list[str | dict[str, Any]] = Field(default_factory=list)
+
+    @field_validator("explanation", mode="before")
+    @classmethod
+    def normalize_explanation(cls, value: Any) -> Any:
+        if isinstance(value, list) and all(isinstance(item, str) for item in value):
+            return " ".join(value)
+        return value
 
     @model_validator(mode="after")
     def validate_pass_threshold(self) -> "JudgeVerdict":
@@ -116,54 +123,70 @@ def _judge_structured[StructuredVerdict: BaseModel](
                         "score": "number between 0 and 1",
                         "passed": "boolean; true when score >= 0.8",
                         "explanation": "short evidence-backed explanation",
-                        "evidence": "list of quoted or referenced facts used by the judge",
+                        "evidence": (
+                            "list of quoted facts or objects containing evidence IDs and excerpts"
+                        ),
                     },
                 }
             ),
         },
     ]
-    body = json.dumps(
-        {
-            "model": settings.judge_model,
-            "messages": messages,
-            "temperature": 0,
-            "response_format": {"type": "json_object"},
-        }
-    ).encode("utf-8")
     base_url = settings.judge_base_url.rstrip("/")
     if settings.judge_provider == "ollama" and not base_url.endswith("/v1"):
         base_url = f"{base_url}/v1"
     headers = {"content-type": "application/json"}
     if settings.judge_api_key:
         headers["authorization"] = f"Bearer {settings.judge_api_key}"
-    req = request.Request(
-        f"{base_url}/chat/completions",
-        data=body,
-        headers=headers,
-        method="POST",
-    )
-    try:
-        with request.urlopen(req, timeout=settings.judge_timeout_seconds) as response:
-            response_payload = json.loads(response.read().decode("utf-8"))
-    except error.HTTPError as exc:
-        raise JudgeUnavailableError(
-            "LLM judge provider request failed",
-            metadata={"provider": settings.judge_provider, "status_code": exc.code},
-        ) from exc
-    except (OSError, TimeoutError) as exc:
-        raise JudgeUnavailableError(
-            "LLM judge provider was unreachable",
-            metadata={"provider": settings.judge_provider, "error": str(exc)},
-        ) from exc
+    validation_error: Exception | None = None
+    for attempt in range(2):
+        body = json.dumps(
+            {
+                "model": settings.judge_model,
+                "messages": messages,
+                "temperature": 0,
+                "response_format": {"type": "json_object"},
+            }
+        ).encode("utf-8")
+        req = request.Request(
+            f"{base_url}/chat/completions",
+            data=body,
+            headers=headers,
+            method="POST",
+        )
+        try:
+            with request.urlopen(req, timeout=settings.judge_timeout_seconds) as response:
+                response_payload = json.loads(response.read().decode("utf-8"))
+        except error.HTTPError as exc:
+            raise JudgeUnavailableError(
+                "LLM judge provider request failed",
+                metadata={"provider": settings.judge_provider, "status_code": exc.code},
+            ) from exc
+        except (OSError, TimeoutError) as exc:
+            raise JudgeUnavailableError(
+                "LLM judge provider was unreachable",
+                metadata={"provider": settings.judge_provider, "error": str(exc)},
+            ) from exc
 
-    try:
-        content = response_payload["choices"][0]["message"]["content"]
-    except (KeyError, IndexError, TypeError) as exc:
-        raise ValidationError("LLM judge returned an invalid provider response") from exc
-    try:
-        return verdict_model.model_validate_json(content)
-    except (PydanticValidationError, ValueError) as exc:
-        raise ValidationError("LLM judge returned invalid structured output") from exc
+        try:
+            content = response_payload["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise ValidationError("LLM judge returned an invalid provider response") from exc
+        try:
+            return verdict_model.model_validate_json(content)
+        except (PydanticValidationError, ValueError) as exc:
+            validation_error = exc
+            if attempt == 0:
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "Your previous response did not match the requested JSON schema. "
+                            "Return one complete JSON object only, with every required field."
+                        ),
+                    }
+                )
+
+    raise ValidationError("LLM judge returned invalid structured output") from validation_error
 
 
 def judge_answer_quality(

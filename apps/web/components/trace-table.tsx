@@ -37,7 +37,7 @@ export function TraceTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden border-y border-slate-200 bg-white">
       <div className="hidden grid-cols-[minmax(0,1.8fr)_minmax(9rem,0.7fr)_minmax(8rem,0.6fr)_minmax(8rem,0.6fr)_auto] gap-4 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-500 md:grid">
         <span>Scenario</span><span>Version</span><span>Execution</span><span>Behavior</span><span>Time</span>
       </div>

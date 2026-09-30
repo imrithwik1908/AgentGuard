@@ -158,7 +158,7 @@ export default async function ReleasesPage({
           ) : null}
         </div>
 
-        <div className="mt-6 grid gap-3 md:grid-cols-4">
+        <div className="mt-6 flex flex-col divide-y divide-current/10 border-t border-current/10 pt-2 md:flex-row md:divide-x md:divide-y-0">
           <Metric label="Worse" value={buckets.regressed.length} detail="Scenarios that lost a passing check" />
           <Metric label="Better" value={buckets.improved.length} detail="Scenarios that fixed or improved a check" />
           <Metric label="Same" value={buckets.unchanged.length} detail="Scenarios with equivalent results" />
@@ -166,14 +166,14 @@ export default async function ReleasesPage({
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 p-4">
+      <section className="border-y border-slate-200 bg-white py-4">
+        <div>
           <h2 className="text-lg font-semibold text-ink-950">Compare versions</h2>
           <p className="mt-1 text-sm text-slate-600">
             Choose the trusted version and the new version you want to judge.
           </p>
         </div>
-        <form className="grid gap-3 p-5 md:grid-cols-[1fr_1fr_auto]">
+        <form className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
           <label className="grid gap-1 text-xs font-medium uppercase tracking-wide text-slate-500">
             Baseline
             <select
@@ -263,15 +263,15 @@ export default async function ReleasesPage({
               {comparison.failure_clusters.reduce((total, cluster) => total + cluster.case_count, 0)} regressed checks grouped
             </div>
           </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-4 divide-y divide-slate-100 border-y border-slate-100">
             {comparison.failure_clusters.map((cluster) => (
-              <div key={`${cluster.likely_failure_stage}:${cluster.evaluator_names.join(",")}`} className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div key={`${cluster.likely_failure_stage}:${cluster.evaluator_names.join(",")}`} className="flex items-start justify-between gap-4 py-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="font-semibold text-ink-950">{cluster.label}</h3>
                     <p className="mt-1 text-sm leading-5 text-slate-600">{cluster.summary}</p>
                   </div>
-                  <div className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">
+                  <div className="shrink-0 text-sm font-semibold text-red-700">
                     {cluster.case_count}
                   </div>
                 </div>
@@ -470,7 +470,7 @@ function titleFromTrace(trace: Trace | null): string | null {
 
 function Metric({ label, value, detail }: { label: string; value: React.ReactNode; detail: string }) {
   return (
-    <div className="border-l border-current/10 px-4 py-2 first:border-l-0">
+    <div className="flex-1 px-4 py-3 first:pl-0">
       <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
       <div className="mt-2 text-2xl font-semibold text-ink-950">{value}</div>
       <div className="mt-1 text-xs text-slate-600">{detail}</div>

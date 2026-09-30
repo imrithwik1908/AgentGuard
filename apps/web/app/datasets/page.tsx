@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { ApiUnavailable } from "@/components/api-unavailable";
 import { EmptyState } from "@/components/empty-state";
-import { listDatasets, listProjects, listVersions } from "@/lib/api";
+import { getEvaluationCapabilities, listDatasets, listProjects, listVersions } from "@/lib/api";
 import type { ApplicationVersion, Dataset, Project } from "@/lib/types";
 
 import {
@@ -66,8 +66,9 @@ export default async function DatasetsPage({
   let projects;
   let versions;
   let datasets;
+  let capabilities;
   try {
-    projects = await listProjects();
+    [projects, capabilities] = await Promise.all([listProjects(), getEvaluationCapabilities()]);
     versions = (await Promise.all(projects.map((project) => listVersions(project.id)))).flat();
     datasets = await listDatasets({ limit: 100 });
   } catch (error) {
@@ -133,8 +134,8 @@ export default async function DatasetsPage({
           {datasets.items.map((dataset) => {
             const runnableVersions = versionsForProject(versions, dataset.project_id);
             return (
-              <div key={dataset.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-panel">
-                <div className="border-b border-slate-200 p-5">
+              <div key={dataset.id} className="border-y border-slate-200 bg-white">
+                <div className="border-b border-slate-200 py-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -145,7 +146,7 @@ export default async function DatasetsPage({
                         {dataset.description ?? "No description"}
                       </p>
                     </div>
-                    <div className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm">
+                    <div className="text-sm text-slate-500">
                       {dataset.cases.length} cases
                     </div>
                   </div>
@@ -153,12 +154,16 @@ export default async function DatasetsPage({
                     <div className="mt-5">
                       <form
                         action={evaluateCandidateAction}
-                        className="flex flex-col gap-3 rounded-xl border border-cyan-200 bg-cyan-50/60 p-4 xl:flex-row xl:items-end"
+                        className="flex flex-col gap-4 border-l-2 border-cyan-500 bg-cyan-50/40 px-4 py-3 xl:flex-row xl:items-end"
                       >
                         <input type="hidden" name="dataset_id" value={dataset.id} />
                         <div className="min-w-52 flex-1">
                           <div className="text-sm font-semibold text-ink-950">Compare two versions</div>
-                          <p className="mt-1 text-xs text-slate-600">AgentGuard checks each matching scenario and opens the release result.</p>
+                          <p className="mt-1 text-xs text-slate-600">
+                            {capabilities.ai_judges_enabled
+                              ? `Semantic judging is on · ${capabilities.judge_model}`
+                              : "Deterministic checks only · semantic judging is not connected"}
+                          </p>
                         </div>
                         <div className="flex flex-wrap items-end gap-2">
                           <label className="flex items-center gap-2 text-xs text-slate-600">
@@ -215,7 +220,7 @@ export default async function DatasetsPage({
                 </div>
                 <div className="divide-y divide-slate-100">
                   {dataset.cases.map((datasetCase) => (
-                    <details key={datasetCase.id} className="group px-5 py-4">
+                    <details key={datasetCase.id} className="group py-4">
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-4">
                         <div className="min-w-0">
                           <div className="font-medium text-ink-950">{caseName(datasetCase.name)}</div>
@@ -226,20 +231,20 @@ export default async function DatasetsPage({
                           <span className="text-slate-400 transition group-open:rotate-90">›</span>
                         </div>
                       </summary>
-                      <div className="mt-4 grid gap-4 border-t border-slate-100 pt-4 text-sm lg:grid-cols-[1fr_1fr_auto]">
+                      <div className="mt-4 space-y-4 border-t border-slate-100 pt-4 text-sm">
                             <div>
-                              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Scenario</div>
+                              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Question</div>
                               <div className="mt-1 text-slate-700">{caseQuestion(datasetCase)}</div>
                             </div>
                             <div>
                               <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Expected</div>
                               <div className="mt-1 text-slate-700">{expectedBehavior(datasetCase)}</div>
                             </div>
-                            <div>
+                            <div className="flex flex-wrap items-center gap-2">
                               <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Checks</div>
-                              <div className="mt-1 flex flex-wrap gap-1">
+                              <div className="flex flex-wrap gap-1">
                                 {caseChecks(datasetCase).map((check) => (
-                                  <span key={check} className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">
+                                  <span key={check} className="border-l border-slate-300 px-2 text-xs text-slate-600 first:border-0 first:pl-0">
                                     {check}
                                   </span>
                                 ))}

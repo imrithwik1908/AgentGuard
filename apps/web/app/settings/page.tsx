@@ -2,8 +2,7 @@ import Link from "next/link";
 
 import { ApiUnavailable } from "@/components/api-unavailable";
 import { ApiKeyCreator } from "@/components/api-key-creator";
-import { MetricCard } from "@/components/metric-card";
-import { listApiKeys, listProviders, listRedactionPolicies, listWorkspaces } from "@/lib/api";
+import { getEvaluationCapabilities, listApiKeys, listProviders, listRedactionPolicies, listWorkspaces } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
 
 export default async function SettingsPage() {
@@ -11,12 +10,14 @@ export default async function SettingsPage() {
   let apiKeys;
   let providers;
   let policies;
+  let capabilities;
   try {
-    [workspaces, apiKeys, providers, policies] = await Promise.all([
+    [workspaces, apiKeys, providers, policies, capabilities] = await Promise.all([
       listWorkspaces(),
       listApiKeys(),
       listProviders(),
-      listRedactionPolicies()
+      listRedactionPolicies(),
+      getEvaluationCapabilities()
     ]);
   } catch (error) {
     return (
@@ -55,11 +56,18 @@ export default async function SettingsPage() {
         </div>
       </section>
 
-      <section className="flex flex-col gap-3 rounded-[1.5rem] border border-slate-200/80 bg-white/70 p-3 shadow-panel backdrop-blur md:flex-row">
-        <MetricCard label="Workspaces" value={workspaces.length} detail="Tenant boundaries" tone="focus" />
-        <MetricCard label="SDK keys" value={apiKeys.length} detail="Runtime ingestion access" />
-        <MetricCard label="Providers" value={providers.length} detail="External LLM configs" />
-        <MetricCard label="Policies" value={policies.length} detail="Redaction controls" />
+      <section className="flex flex-wrap items-center justify-between gap-4 border-y border-slate-200 py-4">
+        <div>
+          <div className="text-sm font-semibold text-ink-950">Evaluation engine</div>
+          <p className="mt-1 text-sm text-slate-600">
+            {capabilities.ai_judges_enabled
+              ? `Semantic judging is active with ${capabilities.judge_model}.`
+              : "Deterministic checks are active. No semantic judge is connected."}
+          </p>
+        </div>
+        <div className="text-sm text-slate-500">
+          {apiKeys.length} SDK key{apiKeys.length === 1 ? "" : "s"} · {workspaces.length} workspace{workspaces.length === 1 ? "" : "s"}
+        </div>
       </section>
 
       <ApiKeyCreator workspaces={workspaces} apiKeys={apiKeys} />

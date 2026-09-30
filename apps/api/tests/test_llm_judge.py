@@ -187,7 +187,11 @@ def test_failure_analysis_uses_direct_validated_structure(monkeypatch):
 
 
 def test_judge_rejects_inconsistent_pass_flag(monkeypatch):
+    attempts = 0
+
     def fake_urlopen(_req, **_kwargs):
+        nonlocal attempts
+        attempts += 1
         return _Response(
             {
                 "choices": [
@@ -220,3 +224,4 @@ def test_judge_rejects_inconsistent_pass_flag(monkeypatch):
             expected="expected",
             evidence=[],
         )
+    assert attempts == 2

@@ -161,6 +161,7 @@ class EvaluationOrchestrationRequest(BaseModel):
     baseline_version_id: UUID
     candidate_version_id: UUID
     evaluator_names: list[str] | None = None
+    include_ai_judges: bool = True
     request_id: str | None = Field(default=None, max_length=120)
     max_attempts: int = Field(default=2, ge=1, le=5)
 
@@ -209,6 +210,16 @@ class EvaluationOrchestrationResponse(BaseModel):
     baseline_version_id: UUID
     candidate_version_id: UUID
     evaluator_names: list[str]
+    ai_judges_enabled: bool = False
+    ai_judges_requested: bool = False
+    warnings: list[str] = Field(default_factory=list)
     jobs: list[EvaluationJobRead]
     comparison: PairedVersionComparison | None = None
     release_decision: ReleaseDecision | None = None
+
+
+class EvaluationCapabilities(BaseModel):
+    ai_judges_enabled: bool
+    judge_provider: str | None = None
+    judge_model: str | None = None
+    semantic_evaluators: list[str] = Field(default_factory=list)

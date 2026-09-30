@@ -17,6 +17,7 @@ import type {
   DatasetList,
   DemoSeedResult,
   EvaluationJob,
+  EvaluationCapabilities,
   EvaluationOrchestrationResponse,
   EvaluationList,
   EvaluationSummary,
@@ -308,6 +309,7 @@ export async function orchestrateEvaluation(input: {
   baseline_version_id: string;
   candidate_version_id: string;
   evaluator_names?: string[];
+  include_ai_judges?: boolean;
   request_id?: string;
 }): Promise<EvaluationOrchestrationResponse> {
   return request<EvaluationOrchestrationResponse>("/api/v1/evaluations/orchestrate", {
@@ -315,9 +317,14 @@ export async function orchestrateEvaluation(input: {
     body: JSON.stringify({
       ...input,
       evaluator_names: input.evaluator_names ?? null,
+      include_ai_judges: input.include_ai_judges ?? true,
       request_id: input.request_id ?? null
     })
   });
+}
+
+export async function getEvaluationCapabilities(): Promise<EvaluationCapabilities> {
+  return request<EvaluationCapabilities>("/api/v1/evaluations/capabilities");
 }
 
 export async function getEvaluationJob(jobId: string): Promise<EvaluationJob> {

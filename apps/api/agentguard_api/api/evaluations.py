@@ -10,6 +10,7 @@ from agentguard_api.core.config import Settings, get_settings
 from agentguard_api.db.session import get_session
 from agentguard_api.models import Dataset, Project
 from agentguard_api.schemas.evaluation import (
+    EvaluationCapabilities,
     EvaluationCreate,
     EvaluationJobCreate,
     EvaluationJobRead,
@@ -63,6 +64,50 @@ def _case_evaluators(dataset: Dataset) -> list[str]:
         if case.meta.get("latency_budget_ms"):
             names.add("builtin.latency")
     return sorted(names)
+
+
+def _ai_evaluators(dataset: Dataset) -> list[str]:
+    names: set[str] = set()
+    if any(
+        case.expected_substring or case.expected_output or case.meta.get("semantic_requirement")
+        for case in dataset.cases
+    ):
+        names.add("builtin.semantic_correctness")
+    if any(
+        case.meta.get("required_sources") or case.meta.get("expected_document_ids")
+        for case in dataset.cases
+    ):
+        names.update({"builtin.groundedness", "builtin.retrieval_relevance"})
+    if any(
+        case.meta.get("expected_tool")
+        or case.meta.get("expected_tools")
+        or case.meta.get("available_tools")
+        for case in dataset.cases
+    ):
+        names.add("builtin.tool_selection")
+    return sorted(names)
+
+
+@router.get("/capabilities", response_model=EvaluationCapabilities)
+async def evaluation_capabilities(
+    _auth: AuthContext = Depends(get_auth_context),
+    settings: Settings = Depends(get_settings),
+):
+    return EvaluationCapabilities(
+        ai_judges_enabled=settings.judge_enabled,
+        judge_provider=settings.judge_provider if settings.judge_enabled else None,
+        judge_model=settings.judge_model if settings.judge_enabled else None,
+        semantic_evaluators=(
+            [
+                "builtin.semantic_correctness",
+                "builtin.groundedness",
+                "builtin.retrieval_relevance",
+                "builtin.tool_selection",
+            ]
+            if settings.judge_enabled
+            else []
+        ),
+    )
 
 
 def _failure_clusters(regressed) -> list[FailureCluster]:
@@ -186,6 +231,14 @@ async def orchestrate_evaluation(
     if dataset is None:
         raise NotFoundError("dataset was not found")
     evaluator_names = payload.evaluator_names or (_case_evaluators(dataset) if dataset else [])
+    warnings: list[str] = []
+    if payload.include_ai_judges:
+        if settings.judge_enabled:
+            evaluator_names = sorted(set(evaluator_names) | set(_ai_evaluators(dataset)))
+        else:
+            warnings.append(
+                "Semantic judging is not configured; deterministic checks were run instead."
+            )
     jobs: list[EvaluationJobRead] = []
     for version_id in (payload.baseline_version_id, payload.candidate_version_id):
         for evaluator_name in evaluator_names:
@@ -220,6 +273,9 @@ async def orchestrate_evaluation(
             baseline_version_id=payload.baseline_version_id,
             candidate_version_id=payload.candidate_version_id,
             evaluator_names=evaluator_names,
+            ai_judges_enabled=settings.judge_enabled,
+            ai_judges_requested=payload.include_ai_judges,
+            warnings=warnings,
             jobs=jobs,
         )
 
@@ -250,6 +306,9 @@ async def orchestrate_evaluation(
         baseline_version_id=payload.baseline_version_id,
         candidate_version_id=payload.candidate_version_id,
         evaluator_names=evaluator_names,
+        ai_judges_enabled=settings.judge_enabled,
+        ai_judges_requested=payload.include_ai_judges,
+        warnings=warnings,
         jobs=jobs,
         comparison=_paired_response(comparison, buckets),
         release_decision=release_decision,

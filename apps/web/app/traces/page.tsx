@@ -64,7 +64,7 @@ export default async function TracesPage({
         </p>
       </section>
 
-      <form className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+      <form className="flex flex-wrap items-center gap-2 border-y border-slate-200 bg-white py-3">
         <label>
           <span className="sr-only">Project</span>
           <select

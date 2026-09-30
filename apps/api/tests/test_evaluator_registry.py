@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from uuid import uuid4
 
+from agentguard_api.api.evaluations import _ai_evaluators
 from agentguard_api.models.enums import RunStatus
 from agentguard_api.services.evaluations import orchestration_job_request_id
 from agentguard_api.services.evaluator_runner import (
@@ -43,6 +44,22 @@ def test_registry_resolves_builtin_evaluators():
     assert evaluator_registry.resolve("builtin.expected_tool")
     assert evaluator_registry.resolve("builtin.forbidden_tool")
     assert evaluator_registry.resolve("builtin.structured_output")
+
+
+def test_ai_evaluators_are_derived_from_declared_expectations():
+    case = SimpleNamespace(
+        expected_substring="A semantic requirement",
+        expected_output=None,
+        meta={"required_sources": ["policy-a"], "expected_tool": "lookup"},
+    )
+    dataset = SimpleNamespace(cases=[case])
+
+    assert _ai_evaluators(dataset) == [
+        "builtin.groundedness",
+        "builtin.retrieval_relevance",
+        "builtin.semantic_correctness",
+        "builtin.tool_selection",
+    ]
 
 
 def test_orchestration_job_request_ids_are_stable_and_database_safe():

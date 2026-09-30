@@ -134,7 +134,7 @@ export default async function HomePage({
             ) : null}
           </div>
 
-          <div className="mt-6 grid gap-3 border-y border-current/10 py-4 md:grid-cols-3">
+          <div className="mt-6 flex flex-col divide-y divide-current/10 border-y border-current/10 py-2 md:flex-row md:divide-x md:divide-y-0">
             <SignalMetric
               label="Regressions"
               value={String(buckets.regressed.length)}
@@ -206,7 +206,7 @@ export default async function HomePage({
 
 function SignalMetric({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div className="px-4 py-2 first:pl-0">
+    <div className="flex-1 px-4 py-3 first:pl-0">
       <div className="text-xs font-medium uppercase tracking-wide opacity-60">{label}</div>
       <div className="mt-2 text-2xl font-semibold">{value}</div>
       <div className="mt-1 text-xs opacity-70">{detail}</div>

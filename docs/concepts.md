@@ -100,7 +100,9 @@ Examples implemented today:
 - latency budget;
 - inspectable debugging evidence.
 
-Future evaluators may include semantic correctness, groundedness, retrieval relevance, and tool-selection correctness.
+When a judge provider is configured, AgentGuard can also run semantic correctness, groundedness,
+retrieval relevance, and tool-selection checks. These are rubric-based model judgments, not ground
+truth, and their model, rubric, prompt version, explanation, and evidence are stored with the result.
 
 ## Regression
 

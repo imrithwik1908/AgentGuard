@@ -141,6 +141,13 @@ export interface EvaluationSummary {
   average_score: string | number | null;
 }
 
+export interface EvaluationCapabilities {
+  ai_judges_enabled: boolean;
+  judge_provider: string | null;
+  judge_model: string | null;
+  semantic_evaluators: string[];
+}
+
 export interface VersionComparison {
   project_id: string;
   baseline_version_id: string;
@@ -230,6 +237,9 @@ export interface EvaluationOrchestrationResponse {
   baseline_version_id: string;
   candidate_version_id: string;
   evaluator_names: string[];
+  ai_judges_enabled: boolean;
+  ai_judges_requested: boolean;
+  warnings: string[];
   jobs: EvaluationJob[];
   comparison: PairedVersionComparison | null;
   release_decision: ReleaseDecision | null;

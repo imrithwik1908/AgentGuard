@@ -113,6 +113,7 @@ export async function evaluateCandidateAction(formData: FormData) {
       dataset_id: datasetId,
       baseline_version_id: baselineVersionId,
       candidate_version_id: candidateVersionId,
+      include_ai_judges: true,
       request_id: `dashboard:${Date.now()}`
     });
     if (result.status === "QUEUED") {
