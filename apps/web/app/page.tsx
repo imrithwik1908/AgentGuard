@@ -87,6 +87,9 @@ export default async function HomePage({
   const releaseState = deriveReleaseState(buckets, comparison);
   const label = overallLabel(comparison, releaseState);
   const changes = pair ? summarizeConfigChanges(pair.baseline, pair.candidate) : [];
+  const regressionCount = buckets.regressed.length;
+  const improvementCount = buckets.improved.length;
+  const missingCount = buckets.notComparable.length;
   const nextAction = !pair
     ? { label: "Set up a project", href: "/projects" }
     : buckets.regressed.length > 0
@@ -126,7 +129,7 @@ export default async function HomePage({
             </div>
             {pair ? (
               <div className="rounded-full bg-white/70 px-4 py-2 text-sm font-medium shadow-sm">
-                {buckets.regressed.length} regressions · {buckets.improved.length} improvements
+                {regressionCount} {regressionCount === 1 ? "regression" : "regressions"} · {improvementCount} {improvementCount === 1 ? "improvement" : "improvements"}
               </div>
             ) : null}
           </div>
@@ -145,7 +148,7 @@ export default async function HomePage({
             <SignalMetric
               label="Evaluation coverage"
               value={formatPercent(comparison?.comparison_coverage)}
-              detail={`${buckets.notComparable.length} case checks still not comparable`}
+              detail={`${missingCount} ${missingCount === 1 ? "check is" : "checks are"} still not comparable`}
             />
           </div>
 
