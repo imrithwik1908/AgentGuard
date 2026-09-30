@@ -5,11 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EvaluationJobProgress } from "@/components/evaluation-job-progress";
 import type { EvaluationJob } from "@/lib/types";
 
-const refresh = vi.fn();
 const replace = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh, replace })
+  useRouter: () => ({ replace })
 }));
 
 function job(status: EvaluationJob["status"], completed = 0): EvaluationJob {
@@ -37,18 +36,38 @@ function job(status: EvaluationJob["status"], completed = 0): EvaluationJob {
 describe("EvaluationJobProgress", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    refresh.mockReset();
     replace.mockReset();
+    vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise<Response>(() => undefined)));
   });
 
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
 
-  it("keeps polling until the job reaches a terminal state", () => {
+  it("requests fresh status while the job is still running", () => {
     render(<EvaluationJobProgress jobs={[job("RUNNING", 1)]} releaseUrl="/releases" />);
 
-    act(() => vi.advanceTimersByTime(4_500));
-    expect(refresh).toHaveBeenCalledTimes(3);
+    expect(fetch).toHaveBeenCalledOnce();
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("updates from fresh job status and opens the release result", async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => [job("COMPLETED", 4)]
+    } as Response);
+
+    render(<EvaluationJobProgress jobs={[job("RUNNING", 1)]} releaseUrl="/releases?pair=1" />);
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(screen.getByText("100%")).toBeInTheDocument();
+    expect(screen.getByText("Evidence is ready")).toBeInTheDocument();
+    await act(async () => vi.advanceTimersByTimeAsync(700));
+    expect(replace).toHaveBeenCalledWith("/releases?pair=1");
   });
 
   it("shows completion and opens the release result", () => {
