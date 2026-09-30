@@ -66,6 +66,10 @@ describe("EvaluationJobProgress", () => {
     });
     expect(screen.getByText("100%")).toBeInTheDocument();
     expect(screen.getByText("Evidence is ready")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open comparison" })).toHaveAttribute(
+      "href",
+      "/releases?pair=1"
+    );
     await act(async () => vi.advanceTimersByTimeAsync(700));
     expect(replace).toHaveBeenCalledWith("/releases?pair=1");
   });
@@ -75,6 +79,10 @@ describe("EvaluationJobProgress", () => {
 
     expect(screen.getByText("100%")).toBeInTheDocument();
     expect(screen.getByText("Evidence is ready")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open comparison" })).toHaveAttribute(
+      "href",
+      "/releases?pair=1"
+    );
     act(() => vi.advanceTimersByTime(700));
     expect(replace).toHaveBeenCalledWith("/releases?pair=1");
   });

@@ -243,7 +243,7 @@ export default async function ReleasesPage({
       ) : null}
 
       {comparison?.failure_clusters?.length ? (
-        <details className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <details className="border-y border-slate-200 bg-white py-4">
           <summary className="cursor-pointer font-medium text-ink-950">
             Similar failures ({comparison.failure_clusters.reduce((total, cluster) => total + cluster.case_count, 0)})
           </summary>
@@ -296,18 +296,18 @@ export default async function ReleasesPage({
         <CaseList items={buckets.regressed} empty="No paired regressions found for this comparison." tone="regressed" baselineLabel={pair?.baseline.version} candidateLabel={pair?.candidate.version} baselineVersionId={pair?.baseline.id} candidateVersionId={pair?.candidate.id} />
       </section>
 
-      <details className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" open={buckets.improved.length > 0}>
+      <details className="border-y border-slate-200 bg-white py-4" open={buckets.improved.length > 0}>
         <summary className="cursor-pointer font-semibold text-ink-950">Improvements ({buckets.improved.length})</summary>
         <div className="mt-4"><CaseList items={buckets.improved} empty="No improvements in this comparison." tone="improved" baselineLabel={pair?.baseline.version} candidateLabel={pair?.candidate.version} baselineVersionId={pair?.baseline.id} candidateVersionId={pair?.candidate.id} /></div>
       </details>
 
-      <details className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <details className="border-y border-slate-200 bg-white py-4">
         <summary className="cursor-pointer font-semibold text-ink-950">Unchanged scenarios ({buckets.unchanged.length})</summary>
         <div className="mt-4"><CaseList items={buckets.unchanged.slice(0, 12)} empty="No unchanged scenarios." tone="unchanged" baselineLabel={pair?.baseline.version} candidateLabel={pair?.candidate.version} baselineVersionId={pair?.baseline.id} candidateVersionId={pair?.candidate.id} compact /></div>
       </details>
 
       {buckets.notComparable.length ? (
-        <details className="rounded-xl border border-amber-200 bg-amber-50/40 p-4">
+        <details className="border-y border-amber-200 bg-amber-50/40 py-4">
           <summary className="cursor-pointer font-semibold text-ink-950">Missing comparison evidence ({buckets.notComparable.length})</summary>
           <p className="mt-2 text-sm text-slate-600">These scenarios are missing a matching baseline or candidate result. They are not regressions.</p>
           <div className="mt-4"><CaseList items={buckets.notComparable.slice(0, 12)} empty="" tone="unchanged" baselineLabel={pair?.baseline.version} candidateLabel={pair?.candidate.version} baselineVersionId={pair?.baseline.id} candidateVersionId={pair?.candidate.id} compact /></div>
@@ -616,14 +616,14 @@ function CaseList({
   compact?: boolean;
 }) {
   if (items.length === 0) {
-    return <div className="surface rounded-2xl p-5 text-sm text-slate-600">{empty}</div>;
+    return <div className="border-y border-slate-200 py-5 text-sm text-slate-600">{empty}</div>;
   }
   return (
-    <div className="space-y-3">
+    <div className="divide-y divide-slate-200 border-y border-slate-200 bg-white">
       {items.map((item) => compact ? (
         <CompactCase key={item.key} item={item} baselineLabel={baselineLabel} candidateLabel={candidateLabel} baselineVersionId={baselineVersionId} candidateVersionId={candidateVersionId} />
       ) : (
-        <div key={item.key} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <article key={item.key} className="py-6 first:pt-5 last:pb-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Scenario</div>
@@ -651,9 +651,9 @@ function CaseList({
             <p className="mt-1 leading-6">{caseDifferenceExplanation(item)}</p>
           </div>
 
-          <details className="mt-4 rounded-lg border border-slate-200 bg-slate-50/60 px-4 py-3">
+          <details className="mt-4 border-y border-slate-200 bg-slate-50/60 px-3 py-3">
             <summary className="cursor-pointer text-sm font-medium text-slate-700">Compare answers and evidence</summary>
-              <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
+              <div className="mt-4 overflow-x-auto border-y border-slate-200 bg-white">
                 <div className="grid grid-cols-[minmax(8rem,0.75fr)_minmax(0,1fr)_minmax(0,1fr)] bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <span>Evidence</span>
                   <span>{baselineLabel}</span>
@@ -685,7 +685,7 @@ function CaseList({
                 Open {baselineLabel}
               </Link>
             ) : null}
-            <details className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 md:w-auto md:min-w-[28rem]">
+            <details className="w-full border-y border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 md:w-auto md:min-w-[28rem]">
               <summary className="cursor-pointer font-medium text-slate-700">How AgentGuard scored this</summary>
               <div className="mt-3 grid min-w-0 gap-3 pb-2 text-xs leading-5 lg:grid-cols-2">
                 <EvidenceColumn title="Baseline evidence" items={item.baselineEvaluations} />
@@ -693,7 +693,7 @@ function CaseList({
               </div>
             </details>
           </div>
-        </div>
+        </article>
       ))}
     </div>
   );
@@ -713,7 +713,7 @@ function CompactCase({
   candidateVersionId?: string;
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <div className="font-medium text-ink-950">{item.title}</div>
         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
@@ -741,13 +741,13 @@ function StageComparison({ item, baselineLabel, candidateLabel }: { item: Regres
     ["Operational", "Execution"]
   ] as const;
   return (
-    <div className="mt-5 grid gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="mt-5 flex flex-col divide-y divide-slate-200 border-y border-slate-200 sm:flex-row sm:divide-x sm:divide-y-0">
       {stages.map(([category, label]) => {
         const matching = rows.filter((row) => evaluatorInfo(row.name).category === category);
         const baseline = matching.length ? matching.every((row) => row.baseline?.passed) : null;
         const candidate = matching.length ? matching.every((row) => row.candidate?.passed) : null;
         return (
-          <div key={category} className="bg-white p-3">
+          <div key={category} className="min-w-0 flex-1 bg-white px-3 py-3 first:pl-0 last:pr-0 sm:px-4">
             <div className="text-xs font-semibold text-slate-500">{label}</div>
             <div className="mt-2 flex items-center gap-2 text-xs">
               <PlainOutcome value={baseline} /><span className="text-slate-400">{baselineLabel} →</span><PlainOutcome value={candidate} /><span className="text-slate-400">{candidateLabel}</span>

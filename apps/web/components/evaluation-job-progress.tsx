@@ -64,7 +64,7 @@ export function EvaluationJobProgress({
   const completedJobs = currentJobs.filter((job) => TERMINAL.has(job.status)).length;
 
   return (
-    <section className="overflow-hidden rounded-xl border border-cyan-200 bg-white shadow-panel">
+    <section className="border-y border-cyan-200 bg-cyan-50/30">
       <div className="p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -96,13 +96,21 @@ export function EvaluationJobProgress({
             Status update was interrupted. AgentGuard will keep trying automatically.
           </p>
         ) : null}
-        <details className="mt-3 text-xs text-slate-500">
+        {finished ? (
+          <a
+            href={releaseUrl}
+            className="mt-4 inline-flex rounded-full bg-ink-950 px-4 py-2 text-sm font-medium text-white hover:bg-ink-800"
+          >
+            Open comparison
+          </a>
+        ) : null}
+        <details className="mt-4 border-t border-cyan-100 pt-3 text-xs text-slate-500">
           <summary className="cursor-pointer font-medium">View check progress</summary>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-3 divide-y divide-slate-200 border-y border-slate-200 bg-white">
             {currentJobs.map((job) => (
-              <div key={job.id} className="rounded-lg bg-slate-50 px-3 py-2">
-                <div className="truncate font-medium text-slate-700">{job.evaluator_name.replace("builtin.", "")}</div>
-                <div className="mt-1 flex items-center justify-between">
+              <div key={job.id} className="flex items-center justify-between gap-4 px-3 py-2">
+                <div className="truncate font-medium text-slate-700">{job.evaluator_name.replace("builtin.", "").replaceAll("_", " ")}</div>
+                <div className="flex shrink-0 items-center gap-4 text-slate-500">
                   <span>{job.completed_cases}/{job.total_cases} cases</span>
                   <span>{job.status.toLowerCase()}</span>
                 </div>
