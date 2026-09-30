@@ -37,6 +37,8 @@ export async function createVersionAction(projectId: string, formData: FormData)
   const name = String(formData.get("name") ?? "").trim();
   const version = String(formData.get("version") ?? "").trim();
   const gitCommit = String(formData.get("git_commit") ?? "").trim();
+  const retrievalTopK = String(formData.get("retrieval_top_k") ?? "").trim();
+  const promptProfile = String(formData.get("prompt_profile") ?? "").trim();
 
   if (!name || !version) {
     redirect(
@@ -45,7 +47,13 @@ export async function createVersionAction(projectId: string, formData: FormData)
   }
 
   try {
-    await createVersion(projectId, { name, version, git_commit: gitCommit });
+    await createVersion(projectId, {
+      name,
+      version,
+      git_commit: gitCommit,
+      retrieval_config: retrievalTopK ? { top_k: Number(retrievalTopK) } : {},
+      prompt_config: promptProfile ? { profile: promptProfile } : {}
+    });
   } catch (error) {
     const message = encodeURIComponent(messageFromError(error, "Version could not be registered"));
     redirect(`/projects/${projectId}?version_error=${message}`);

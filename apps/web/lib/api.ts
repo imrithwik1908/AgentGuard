@@ -20,6 +20,7 @@ import type {
   EvaluationOrchestrationResponse,
   EvaluationList,
   EvaluationSummary,
+  JsonValue,
   PairedVersionComparison,
   Project,
   ProviderIntegration,
@@ -208,6 +209,8 @@ export async function createVersion(
     name: string;
     version: string;
     git_commit?: string;
+    retrieval_config?: Record<string, JsonValue>;
+    prompt_config?: Record<string, JsonValue>;
   }
 ): Promise<ApplicationVersion> {
   return request<ApplicationVersion>(`/api/v1/projects/${projectIdOrSlug}/versions`, {
@@ -215,7 +218,9 @@ export async function createVersion(
     body: JSON.stringify({
       name: input.name,
       version: input.version,
-      git_commit: input.git_commit || null
+      git_commit: input.git_commit || null,
+      retrieval_config: input.retrieval_config ?? {},
+      prompt_config: input.prompt_config ?? {}
     })
   });
 }

@@ -36,8 +36,8 @@ supports any OpenAI-compatible `/chat/completions` endpoint.
 Sign in to AgentGuard. In **Setup**:
 
 1. Create a project named **Meeting Notes Assistant** with slug `meeting-notes-assistant`.
-2. Create version `prod-v1` with retrieval configuration `{"top_k": 3}`.
-3. Create version `candidate-v2` with retrieval configuration `{"top_k": 6}`.
+2. Create version `prod-v1` with **Retrieval top-k** `3` and **Prompt profile** `strict-evidence`.
+3. Create version `candidate-v2` with **Retrieval top-k** `6` and **Prompt profile** `concise`.
 4. Create and copy a workspace API key. It is only shown once.
 
 Export the connection values. `AGENTGUARD_PROJECT` is the project slug, while

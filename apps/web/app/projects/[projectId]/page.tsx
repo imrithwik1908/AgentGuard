@@ -90,7 +90,7 @@ export default async function ProjectDetailPage({
             {versionError}
           </div>
         ) : null}
-        <form action={createVersionForProject} className="mt-4 grid gap-3 md:grid-cols-[1fr_0.7fr_1fr_auto]">
+        <form action={createVersionForProject} className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_0.7fr_0.7fr_1fr_1fr_auto]">
           <input
             required
             name="name"
@@ -101,6 +101,18 @@ export default async function ProjectDetailPage({
             required
             name="version"
             placeholder="v1"
+            className="rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-ink-700"
+          />
+          <input
+            name="retrieval_top_k"
+            type="number"
+            min="1"
+            placeholder="Retrieval top-k"
+            className="rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-ink-700"
+          />
+          <input
+            name="prompt_profile"
+            placeholder="Prompt profile"
             className="rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-ink-700"
           />
           <input
