@@ -1,9 +1,7 @@
 import { ApiUnavailable } from "@/components/api-unavailable";
 import { EmptyState } from "@/components/empty-state";
-import { MetricCard } from "@/components/metric-card";
 import { TraceTable } from "@/components/trace-table";
 import { listEvaluations, listProjects, listTraces, listVersions } from "@/lib/api";
-import { summarizeTelemetry } from "@/lib/insights";
 import type { RunStatus, Trace } from "@/lib/types";
 
 function dateFilter(trace: Trace, from?: string, to?: string): boolean {
@@ -54,36 +52,25 @@ export default async function TracesPage({
     ? versions.filter((version) => version.project_id === projectId)
     : versions;
   const visibleTraces = traces.items.filter((trace) => dateFilter(trace, from, to));
-  const stats = summarizeTelemetry({ projects, versions, traces: visibleTraces });
+  const hasFilters = Boolean(projectId || versionId || status || from || to);
 
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-panel">
-        <div className="h-1 bg-gradient-to-r from-cyan-500 via-emerald-500 to-slate-900" />
-        <div className="p-5">
-        <div className="text-xs font-medium uppercase tracking-wide text-cyan-700">Investigation surface</div>
+      <section className="border-b border-slate-200 pb-6 pt-2">
+        <div className="text-xs font-semibold uppercase tracking-wide text-cyan-700">Investigate</div>
         <h1 className="mt-2 text-2xl font-semibold text-ink-950">Runs</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          A run is one complete AI application execution. Start here when a regression needs
-          debugging, then drill into the trace waterfall and span details only when needed.
+          One row is one application execution. Open a run to see its answer, evidence, checks, and detailed steps.
         </p>
-        </div>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-4">
-        <MetricCard label="Visible runs" value={stats.traceCount} detail="Executions matching filters" tone="focus" />
-        <MetricCard label="OK" value={stats.okCount} detail="Successful executions" tone="ok" />
-        <MetricCard label="Errors" value={stats.errorCount} detail="Runs with captured failures" tone="error" />
-        <MetricCard label="Spans" value={stats.spanCount} detail="Operations inside these runs" />
-      </section>
-
-      <form className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-panel md:grid-cols-5">
-        <label className="grid gap-1 text-xs font-medium uppercase tracking-wide text-slate-500">
-          Project
+      <form className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <label>
+          <span className="sr-only">Project</span>
           <select
             name="project_id"
             defaultValue={projectId}
-            className="rounded border border-slate-300 px-3 py-2 text-sm font-normal normal-case tracking-normal text-ink-950"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-ink-950"
           >
             <option value="">All projects</option>
             {projects.map((project) => (
@@ -93,12 +80,12 @@ export default async function TracesPage({
             ))}
           </select>
         </label>
-        <label className="grid gap-1 text-xs font-medium uppercase tracking-wide text-slate-500">
-          Version
+        <label>
+          <span className="sr-only">Version</span>
           <select
             name="version_id"
             defaultValue={versionId}
-            className="rounded border border-slate-300 px-3 py-2 text-sm font-normal normal-case tracking-normal text-ink-950"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-ink-950"
           >
             <option value="">All versions</option>
             {selectedProjectVersions.map((version) => (
@@ -108,46 +95,46 @@ export default async function TracesPage({
             ))}
           </select>
         </label>
-        <label className="grid gap-1 text-xs font-medium uppercase tracking-wide text-slate-500">
-          Status
+        <label>
+          <span className="sr-only">Execution status</span>
           <select
             name="status"
             defaultValue={status}
-            className="rounded border border-slate-300 px-3 py-2 text-sm font-normal normal-case tracking-normal text-ink-950"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-ink-950"
           >
-            <option value="">All statuses</option>
-            <option value="OK">OK</option>
-            <option value="ERROR">ERROR</option>
-            <option value="UNSET">UNSET</option>
+            <option value="">Any execution</option>
+            <option value="OK">Completed</option>
+            <option value="ERROR">Runtime error</option>
+            <option value="UNSET">Unknown</option>
           </select>
         </label>
-        <label className="grid gap-1 text-xs font-medium uppercase tracking-wide text-slate-500">
-          From
+        <label>
+          <span className="sr-only">From date</span>
           <input
             name="from"
             type="datetime-local"
             defaultValue={from}
-            className="rounded border border-slate-300 px-3 py-2 text-sm font-normal normal-case tracking-normal text-ink-950"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-ink-950"
           />
         </label>
-        <div className="flex gap-2">
-          <label className="grid min-w-0 flex-1 gap-1 text-xs font-medium uppercase tracking-wide text-slate-500">
-            To
+        <label>
+            <span className="sr-only">To date</span>
             <input
               name="to"
               type="datetime-local"
               defaultValue={to}
-              className="min-w-0 rounded border border-slate-300 px-3 py-2 text-sm font-normal normal-case tracking-normal text-ink-950"
+              className="min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm text-ink-950"
             />
-          </label>
-          <button className="self-end rounded-full bg-ink-900 px-4 py-2 text-sm font-medium text-white">Apply</button>
-        </div>
+        </label>
+        <button className="rounded-lg bg-ink-900 px-4 py-2 text-sm font-medium text-white">Apply</button>
+        {hasFilters ? <a href="/traces" className="px-2 text-sm text-slate-600 hover:underline">Clear</a> : null}
+        <span className="ml-auto text-sm text-slate-500">{visibleTraces.length} runs</span>
       </form>
 
       {visibleTraces.length === 0 ? (
         <EmptyState
           title="No runs match these filters"
-          description="Adjust the filters or run the demo agent to submit telemetry."
+          description="Adjust the filters or submit runs from an instrumented application."
         />
       ) : (
         <TraceTable traces={visibleTraces} projects={projects} versions={versions} evaluations={evaluations.items} />

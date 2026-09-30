@@ -125,14 +125,14 @@ export default async function ReleasesPage({
     buckets.regressed.length + buckets.improved.length + buckets.unchanged.length;
 
   return (
-    <div className="space-y-8">
-      <section className={`rounded-[2rem] border p-6 shadow-panel ${decisionClasses(releaseState.tone)}`}>
+    <div className="space-y-7">
+      <section className={`rounded-2xl border p-6 shadow-panel ${decisionClasses(releaseState.tone)}`}>
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="text-xs font-medium uppercase tracking-[0.22em] opacity-70">
               Release decision
             </div>
-            <h1 className="mt-3 text-4xl font-semibold tracking-normal">{releaseState.title}</h1>
+            <h1 className="mt-3 text-3xl font-semibold tracking-normal">{releaseState.title}</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 opacity-80">
               {pair
                 ? `${pair.project.name}: candidate ${pair.candidate.version} compared with baseline ${pair.baseline.version}.`
@@ -148,30 +148,29 @@ export default async function ReleasesPage({
             ) : null}
           </div>
           {pair ? (
-            <div className="rounded-2xl bg-white/70 p-4 shadow-sm">
-              <div className="text-xs uppercase tracking-wide opacity-60">Paired evaluator checks</div>
+            <div className="border-l border-current/10 py-2 pl-5 lg:min-w-72">
+              <div className="text-xs uppercase tracking-wide opacity-60">Comparison coverage</div>
               <div className="mt-2 text-3xl font-semibold">{comparedCount}</div>
               <p className="mt-2 max-w-sm text-sm leading-5 opacity-75">
-                {formatPercent(comparison?.comparison_coverage)} evaluator coverage: the share of relevant checks with evidence from both versions.
+                {formatPercent(comparison?.comparison_coverage)} of relevant checks have evidence from both versions.
               </p>
             </div>
           ) : null}
         </div>
 
         <div className="mt-6 grid gap-3 md:grid-cols-4">
-          <Metric label="Regressed behaviors" value={buckets.regressed.length} detail="Test cases with at least one worse check" />
-          <Metric label="Improved behaviors" value={buckets.improved.length} detail="Test cases that fixed or improved checks" />
-          <Metric label="Unchanged behaviors" value={buckets.unchanged.length} detail="Test cases with equivalent evidence" />
+          <Metric label="Worse" value={buckets.regressed.length} detail="Scenarios that lost a passing check" />
+          <Metric label="Better" value={buckets.improved.length} detail="Scenarios that fixed or improved a check" />
+          <Metric label="Same" value={buckets.unchanged.length} detail="Scenarios with equivalent results" />
           <Metric label="Not comparable" value={buckets.notComparable.length} detail="Test cases missing evidence from one side" />
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-panel">
-        <div className="border-b border-slate-200 bg-slate-50/80 p-5">
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 p-4">
           <h2 className="text-lg font-semibold text-ink-950">Compare versions</h2>
           <p className="mt-1 text-sm text-slate-600">
-            AgentGuard pairs the same test-case checks across versions. AI-assisted explanations
-            appear only when a judge is configured and its evidence is stored.
+            Choose the trusted version and the new version you want to judge.
           </p>
         </div>
         <form className="grid gap-3 p-5 md:grid-cols-[1fr_1fr_auto]">
@@ -212,22 +211,22 @@ export default async function ReleasesPage({
       </section>
 
       {comparison && pair ? (
-        <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="surface rounded-[2rem] p-5">
-            <div className="text-xs font-medium uppercase tracking-[0.2em] text-cyan-700">
-              Score movement
+        <section className="grid gap-5 border-y border-slate-200 py-6 lg:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-cyan-700">Results at a glance</div>
+            <h2 className="mt-2 text-lg font-semibold text-ink-950">How the versions performed</h2>
+            <div className="mt-5 space-y-5">
+              <BenchmarkRow label={pair.baseline.version} passRate={numeric(comparison.baseline.pass_rate)} passed={comparison.baseline.pass_count} total={comparison.baseline.evaluation_count} tone="baseline" />
+              <BenchmarkRow label={pair.candidate.version} passRate={numeric(comparison.candidate.pass_rate)} passed={comparison.candidate.pass_count} total={comparison.candidate.evaluation_count} tone="candidate" />
             </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <Metric label="Answer-check score" value={scoreMovementLabel(comparison.score_delta)} detail="Average stored check score moved candidate vs baseline" />
-              <Metric label="Pass-rate movement" value={formatPercent(comparison.pass_rate_delta)} detail="Share of stored checks that passed" />
-              <Metric label="Baseline checks" value={comparison.baseline.evaluation_count} detail={`${comparison.baseline.pass_count} passing`} />
-              <Metric label="Candidate checks" value={comparison.candidate.evaluation_count} detail={`${comparison.candidate.fail_count} failing`} />
-            </div>
+            <p className="mt-5 text-sm leading-6 text-slate-600">
+              The candidate pass rate moved {formatPercent(comparison.pass_rate_delta)}. Open a changed scenario below to see which check moved and why.
+            </p>
           </div>
 
-          <div className="surface rounded-[2rem] p-5">
+          <div>
             <div className="text-xs font-medium uppercase tracking-[0.2em] text-cyan-700">
-              Observed application changes
+              What changed in the application
             </div>
             <div className="mt-4">
               <ConfigChangeList
@@ -236,26 +235,28 @@ export default async function ReleasesPage({
                 changes={changes}
               />
             </div>
-            <p className="mt-4 text-xs leading-5 text-slate-500">
-              These differences come from registered version configuration or recorded run metadata.
-              They coincided with the evaluation result; AgentGuard does not claim they caused it.
+            <p className="mt-3 text-xs leading-5 text-slate-500">
+              These are observed configuration differences. They may explain a result, but they do not prove what caused it.
             </p>
           </div>
         </section>
       ) : null}
 
       {comparison?.failure_clusters?.length ? (
-        <section className="surface rounded-[2rem] p-5">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <details className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <summary className="cursor-pointer font-medium text-ink-950">
+            Similar failures ({comparison.failure_clusters.reduce((total, cluster) => total + cluster.case_count, 0)})
+          </summary>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <div className="text-xs font-medium uppercase tracking-[0.2em] text-cyan-700">
-                Failure groups
+                Patterns
               </div>
               <h2 className="mt-2 text-lg font-semibold text-ink-950">
-                AgentGuard grouped the regressions by observed evidence
+                Scenarios with similar failed checks
               </h2>
               <p className="mt-1 text-sm text-slate-600">
-                These groups summarize patterns. They do not claim the configuration change caused the failure.
+                Grouped by the stage and check that failed. This is supporting evidence, not a causal claim.
               </p>
             </div>
             <div className="text-sm font-medium text-slate-600">
@@ -284,7 +285,7 @@ export default async function ReleasesPage({
               </div>
             ))}
           </div>
-        </section>
+        </details>
       ) : null}
 
       <section className="space-y-4">
@@ -295,24 +296,23 @@ export default async function ReleasesPage({
         <CaseList items={buckets.regressed} empty="No paired regressions found for this comparison." tone="regressed" baselineLabel={pair?.baseline.version} candidateLabel={pair?.candidate.version} baselineVersionId={pair?.baseline.id} candidateVersionId={pair?.candidate.id} />
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-2">
-        <div className="space-y-4">
-          <SectionHeader title="Improvements" description="Checks the candidate fixed or improved." />
-          <CaseList items={buckets.improved} empty="No paired improvements found yet." tone="improved" baselineLabel={pair?.baseline.version} candidateLabel={pair?.candidate.version} baselineVersionId={pair?.baseline.id} candidateVersionId={pair?.candidate.id} />
-        </div>
-        <div className="space-y-4">
-          <SectionHeader title="Unchanged" description="Checks that remained equivalent." />
-          <CaseList items={buckets.unchanged.slice(0, 6)} empty="No unchanged paired checks yet." tone="unchanged" baselineLabel={pair?.baseline.version} candidateLabel={pair?.candidate.version} baselineVersionId={pair?.baseline.id} candidateVersionId={pair?.candidate.id} compact />
-        </div>
-      </section>
+      <details className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" open={buckets.improved.length > 0}>
+        <summary className="cursor-pointer font-semibold text-ink-950">Improvements ({buckets.improved.length})</summary>
+        <div className="mt-4"><CaseList items={buckets.improved} empty="No improvements in this comparison." tone="improved" baselineLabel={pair?.baseline.version} candidateLabel={pair?.candidate.version} baselineVersionId={pair?.baseline.id} candidateVersionId={pair?.candidate.id} /></div>
+      </details>
 
-      <section className="space-y-4">
-        <SectionHeader
-          title="Not comparable yet"
-          description="Cases missing baseline or candidate evidence. These are not regressions."
-        />
-        <CaseList items={buckets.notComparable.slice(0, 8)} empty="Every visible case has evidence from both versions." tone="unchanged" baselineLabel={pair?.baseline.version} candidateLabel={pair?.candidate.version} baselineVersionId={pair?.baseline.id} candidateVersionId={pair?.candidate.id} compact />
-      </section>
+      <details className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <summary className="cursor-pointer font-semibold text-ink-950">Unchanged scenarios ({buckets.unchanged.length})</summary>
+        <div className="mt-4"><CaseList items={buckets.unchanged.slice(0, 12)} empty="No unchanged scenarios." tone="unchanged" baselineLabel={pair?.baseline.version} candidateLabel={pair?.candidate.version} baselineVersionId={pair?.baseline.id} candidateVersionId={pair?.candidate.id} compact /></div>
+      </details>
+
+      {buckets.notComparable.length ? (
+        <details className="rounded-xl border border-amber-200 bg-amber-50/40 p-4">
+          <summary className="cursor-pointer font-semibold text-ink-950">Missing comparison evidence ({buckets.notComparable.length})</summary>
+          <p className="mt-2 text-sm text-slate-600">These scenarios are missing a matching baseline or candidate result. They are not regressions.</p>
+          <div className="mt-4"><CaseList items={buckets.notComparable.slice(0, 12)} empty="" tone="unchanged" baselineLabel={pair?.baseline.version} candidateLabel={pair?.candidate.version} baselineVersionId={pair?.baseline.id} candidateVersionId={pair?.candidate.id} compact /></div>
+        </details>
+      ) : null}
     </div>
   );
 }
@@ -442,15 +442,21 @@ function averageEvaluationScore(items: EvaluationResult[]): number | null {
 function caseSummary(items: CaseComparison[]): string {
   const regressed = items.filter((item) => item.classification === "REGRESSED").length;
   const improved = items.filter((item) => item.classification === "IMPROVED").length;
-  if (regressed && improved) return `${regressed} check(s) became worse and ${improved} improved in the candidate.`;
-  if (regressed) return `${regressed} check(s) worked better in the baseline than in the candidate.`;
-  if (improved) return `${improved} check(s) improved in the candidate.`;
+  const checks = (count: number) => `${count} ${count === 1 ? "check" : "checks"}`;
+  if (regressed && improved) return `${checks(regressed)} became worse and ${checks(improved)} improved in the candidate.`;
+  if (regressed) return `${checks(regressed)} worked better in the baseline than in the candidate.`;
+  if (improved) return `${checks(improved)} improved in the candidate.`;
   if (items.some((item) => item.classification === "NOT_COMPARABLE")) return "One side is missing matching evaluation evidence.";
   return "The paired checks produced equivalent evidence.";
 }
 
 function mergeChanges(left: ChangeItem[], right: ChangeItem[]): ChangeItem[] {
-  return [...new Map([...left, ...right].map((change) => [`${change.label}:${change.field ?? ""}`, change])).values()];
+  const normalizedKey = (change: ChangeItem) => {
+    const group = configGroupLabel(change.label);
+    const field = change.field === "retrieval_top_k" ? "top_k" : change.field ?? "";
+    return `${group}:${field}`;
+  };
+  return [...new Map([...right, ...left].map((change) => [normalizedKey(change), change])).values()];
 }
 
 function titleFromTrace(trace: Trace | null): string | null {
@@ -464,10 +470,37 @@ function titleFromTrace(trace: Trace | null): string | null {
 
 function Metric({ label, value, detail }: { label: string; value: React.ReactNode; detail: string }) {
   return (
-    <div className="rounded-2xl bg-white/70 p-4 shadow-sm">
+    <div className="border-l border-current/10 px-4 py-2 first:border-l-0">
       <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
       <div className="mt-2 text-2xl font-semibold text-ink-950">{value}</div>
       <div className="mt-1 text-xs text-slate-600">{detail}</div>
+    </div>
+  );
+}
+
+function BenchmarkRow({
+  label,
+  passRate,
+  passed,
+  total,
+  tone
+}: {
+  label: string;
+  passRate: number | null;
+  passed: number;
+  total: number;
+  tone: "baseline" | "candidate";
+}) {
+  const percent = Math.round((passRate ?? 0) * 100);
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span className="font-semibold text-ink-950">{label}</span>
+        <span className="text-slate-600">{passed} of {total} checks passed · {percent}%</span>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+        <div className={`h-full rounded-full ${tone === "candidate" ? "bg-cyan-600" : "bg-slate-500"}`} style={{ width: `${percent}%` }} />
+      </div>
     </div>
   );
 }
@@ -495,8 +528,8 @@ function ConfigChangeList({
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">
                 {configGroupLabel(change.label)}
                 {change.field ? (
-                  <div className="mt-1 break-words font-mono text-[11px] normal-case tracking-normal text-slate-700">
-                    {change.field}
+                  <div className="mt-1 break-words text-[11px] normal-case tracking-normal text-slate-700">
+                    {configFieldLabel(change.field)}
                   </div>
                 ) : null}
               </div>
@@ -504,7 +537,7 @@ function ConfigChangeList({
               <div className="hidden pt-1 text-slate-400 sm:block">→</div>
               <CodeLikeValue value={change.after} align="right" />
             </div>
-            {configGroupLabel(change.label) === "PROMPT" ? (
+            {configGroupLabel(change.label) === "PROMPT" && (change.field === "system_prompt" || change.before.length > 80 || change.after.length > 80) ? (
               <details className="mt-3 sm:ml-[9rem]">
                 <summary className="cursor-pointer text-xs font-medium text-cyan-700">View prompt diff</summary>
                 <pre className="mt-2 max-h-64 overflow-auto rounded-xl bg-slate-950 p-3 text-xs leading-5 text-slate-100"><span className="text-red-300">- {change.before}</span>{"\n"}<span className="text-emerald-300">+ {change.after}</span></pre>
@@ -533,7 +566,7 @@ function CodeLikeValue({ value, align = "left" }: { value: string; align?: "left
   const isPrompt = value.includes("\\n") || value.length > 80;
   return (
     <div className={align === "right" ? "text-left sm:text-right" : "text-left"}>
-      <div className="break-words font-mono text-sm text-ink-950">
+      <div className="break-words text-sm font-medium text-ink-950">
         {isPrompt ? "Modified" : value}
       </div>
     </div>
@@ -548,6 +581,10 @@ function configGroupLabel(label: string): string {
     return "AGENT";
   }
   return "CONFIG";
+}
+
+function configFieldLabel(field: string): string {
+  return field.replaceAll("_", " ");
 }
 
 function SectionHeader({ title, description }: { title: string; description: string }) {
@@ -583,15 +620,14 @@ function CaseList({
   }
   return (
     <div className="space-y-3">
-      {items.map((item) => (
-        <div key={item.key} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-panel">
+      {items.map((item) => compact ? (
+        <CompactCase key={item.key} item={item} baselineLabel={baselineLabel} candidateLabel={candidateLabel} baselineVersionId={baselineVersionId} candidateVersionId={candidateVersionId} />
+      ) : (
+        <div key={item.key} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                Behavioral test case · {item.categories.join(", ") || "Evaluation evidence"}
-              </div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Scenario</div>
               <h3 className="mt-1 text-base font-semibold text-ink-950">{item.title}</h3>
-              <p className="mt-1 max-w-3xl text-sm text-slate-600">{item.summary}</p>
               <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
                 <OutcomeBadge passed={item.baselinePassed} empty={item.baselineEvaluations.length === 0} />
                 <span className="font-medium text-slate-600">{baselineLabel}</span>
@@ -601,15 +637,22 @@ function CaseList({
               </div>
             </div>
             <div className="text-right">
-              <div className={tone === "regressed" ? "text-red-700" : tone === "improved" ? "text-emerald-700" : "text-slate-700"}>
-                {scoreMovementLabel(item.scoreDelta)}
+              <div className={`font-semibold ${tone === "regressed" ? "text-red-700" : tone === "improved" ? "text-emerald-700" : "text-slate-700"}`}>
+                {tone === "regressed" ? "Got worse" : tone === "improved" ? "Improved" : "No meaningful change"}
               </div>
-              <div className="text-xs text-slate-500">average across this case&apos;s checks</div>
+              <div className="text-xs text-slate-500">{item.summary}</div>
             </div>
           </div>
 
-          {!compact ? (
-            <>
+          <StageComparison item={item} baselineLabel={baselineLabel} candidateLabel={candidateLabel} />
+
+          <div className="mt-4 border-l-2 border-cyan-500 pl-4 text-sm text-slate-700">
+            <div className="text-xs font-semibold uppercase tracking-wide text-cyan-700">What changed</div>
+            <p className="mt-1 leading-6">{caseDifferenceExplanation(item)}</p>
+          </div>
+
+          <details className="mt-4 rounded-lg border border-slate-200 bg-slate-50/60 px-4 py-3">
+            <summary className="cursor-pointer text-sm font-medium text-slate-700">Compare answers and evidence</summary>
               <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
                 <div className="grid grid-cols-[minmax(8rem,0.75fr)_minmax(0,1fr)_minmax(0,1fr)] bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <span>Evidence</span>
@@ -623,14 +666,7 @@ function CaseList({
                   <EvaluationComparisonRow key={row.name} name={row.name} baseline={row.baseline} candidate={row.candidate} />
                 ))}
               </div>
-
-              <div className="mt-4 rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4 text-sm text-cyan-950">
-                <div className="text-xs font-semibold uppercase tracking-wide text-cyan-700">What changed in this case?</div>
-                <p className="mt-1 leading-6">{caseDifferenceExplanation(item)}</p>
-                <p className="mt-1 text-xs text-cyan-800">This describes observed evidence, not proven causality.</p>
-              </div>
-            </>
-          ) : null}
+          </details>
 
           <div className="mt-4 flex flex-wrap gap-2">
             {item.candidateTrace ? (
@@ -641,7 +677,7 @@ function CaseList({
                 Investigate {candidateLabel}
               </Link>
             ) : null}
-            {item.baselineTrace && !compact ? (
+            {item.baselineTrace ? (
               <Link
                 href={traceComparisonHref(item.baselineTrace.id, "baseline", baselineVersionId, candidateVersionId)}
                 className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
@@ -649,8 +685,8 @@ function CaseList({
                 Open {baselineLabel}
               </Link>
             ) : null}
-            <details className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 md:w-auto md:min-w-[34rem]">
-              <summary className="cursor-pointer font-medium text-slate-700">How scores were calculated</summary>
+            <details className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 md:w-auto md:min-w-[28rem]">
+              <summary className="cursor-pointer font-medium text-slate-700">How AgentGuard scored this</summary>
               <div className="mt-3 grid min-w-0 gap-3 pb-2 text-xs leading-5 lg:grid-cols-2">
                 <EvidenceColumn title="Baseline evidence" items={item.baselineEvaluations} />
                 <EvidenceColumn title="Candidate evidence" items={item.candidateEvaluations} />
@@ -661,6 +697,71 @@ function CaseList({
       ))}
     </div>
   );
+}
+
+function CompactCase({
+  item,
+  baselineLabel,
+  candidateLabel,
+  baselineVersionId,
+  candidateVersionId
+}: {
+  item: RegressionCase;
+  baselineLabel: string;
+  candidateLabel: string;
+  baselineVersionId?: string;
+  candidateVersionId?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <div className="font-medium text-ink-950">{item.title}</div>
+        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+          <OutcomeBadge passed={item.baselinePassed} empty={item.baselineEvaluations.length === 0} />
+          <span>{baselineLabel}</span><span>→</span>
+          <OutcomeBadge passed={item.candidatePassed} empty={item.candidateEvaluations.length === 0} />
+          <span>{candidateLabel}</span>
+        </div>
+      </div>
+      {item.candidateTrace ? (
+        <Link href={traceComparisonHref(item.candidateTrace.id, "candidate", baselineVersionId, candidateVersionId)} className="shrink-0 text-sm font-medium text-cyan-800 hover:underline">
+          Open run
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
+function StageComparison({ item, baselineLabel, candidateLabel }: { item: RegressionCase; baselineLabel: string; candidateLabel: string }) {
+  const rows = pairedEvaluatorRows(item);
+  const stages = [
+    ["Answer Quality", "Answer"],
+    ["Retrieval", "Retrieval"],
+    ["Agent Behavior", "Tools & workflow"],
+    ["Operational", "Execution"]
+  ] as const;
+  return (
+    <div className="mt-5 grid gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 sm:grid-cols-2 lg:grid-cols-4">
+      {stages.map(([category, label]) => {
+        const matching = rows.filter((row) => evaluatorInfo(row.name).category === category);
+        const baseline = matching.length ? matching.every((row) => row.baseline?.passed) : null;
+        const candidate = matching.length ? matching.every((row) => row.candidate?.passed) : null;
+        return (
+          <div key={category} className="bg-white p-3">
+            <div className="text-xs font-semibold text-slate-500">{label}</div>
+            <div className="mt-2 flex items-center gap-2 text-xs">
+              <PlainOutcome value={baseline} /><span className="text-slate-400">{baselineLabel} →</span><PlainOutcome value={candidate} /><span className="text-slate-400">{candidateLabel}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PlainOutcome({ value }: { value: boolean | null }) {
+  if (value === null) return <span className="font-medium text-slate-400">—</span>;
+  return <span className={`font-semibold ${value ? "text-emerald-700" : "text-red-700"}`}>{value ? "Pass" : "Fail"}</span>;
 }
 
 function OutcomeBadge({ passed, empty }: { passed: boolean; empty: boolean }) {
@@ -785,11 +886,4 @@ function traceComparisonHref(traceId: string, role: "baseline" | "candidate", ba
   if (baselineVersionId) params.set("baseline_version_id", baselineVersionId);
   if (candidateVersionId) params.set("candidate_version_id", candidateVersionId);
   return `/traces/${traceId}?${params.toString()}`;
-}
-
-function scoreMovementLabel(value: string | number | null | undefined): string {
-  const parsed = numeric(value);
-  if (parsed === null) return "Not available";
-  const sign = parsed > 0 ? "+" : "";
-  return `${sign}${parsed.toFixed(2)}`;
 }

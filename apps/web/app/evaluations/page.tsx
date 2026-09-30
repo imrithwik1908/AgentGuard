@@ -78,19 +78,37 @@ export default async function EvaluationsPage({
   const jobs = jobIds.length ? await Promise.all(jobIds.map((jobId) => getEvaluationJob(jobId))) : [];
   const releaseUrl = `/releases?baseline_version_id=${baselineVersionId}&candidate_version_id=${candidateVersionId}`;
 
+  if (jobs.length) {
+    return (
+      <div className="mx-auto max-w-4xl space-y-5 py-8">
+        <EvaluationJobProgress jobs={jobs} releaseUrl={releaseUrl} />
+        <div className="grid gap-3 border-y border-slate-200 py-5 sm:grid-cols-3">
+          <div>
+            <div className="text-xs font-semibold text-slate-400">1. RUNS</div>
+            <div className="mt-1 text-sm text-slate-700">Match each test case across both versions.</div>
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-slate-400">2. CHECKS</div>
+            <div className="mt-1 text-sm text-slate-700">Measure answers, retrieval, tools, and execution.</div>
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-slate-400">3. DECISION</div>
+            <div className="mt-1 text-sm text-slate-700">Open the comparison when the evidence is ready.</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
-      {jobs.length ? <EvaluationJobProgress jobs={jobs} releaseUrl={releaseUrl} /> : null}
-      <section className="surface rounded-[2rem] p-6">
-        <div className="text-xs font-medium uppercase tracking-[0.22em] text-cyan-700">
-          Evaluate
-        </div>
+      <section className="border-b border-slate-200 pb-6 pt-2">
+        <div className="text-xs font-semibold uppercase tracking-wide text-cyan-700">Evaluate</div>
         <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-3xl font-semibold text-ink-950">What AgentGuard checks</h1>
+            <h1 className="text-3xl font-semibold text-ink-950">Evaluation history</h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-              An evaluator is a check that measures whether a run behaved as expected. These checks
-              become the evidence AgentGuard uses to compare a baseline with a candidate.
+              See the latest checks across your versions. Start a new comparison from Test Suites.
             </p>
           </div>
           <Link
@@ -102,17 +120,19 @@ export default async function EvaluationsPage({
         </div>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-4">
-        {CATEGORIES.map((category) => {
+      <details className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <summary className="cursor-pointer font-medium text-slate-700">Checks AgentGuard can run</summary>
+        <section className="mt-4 grid gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 lg:grid-cols-4">
+          {CATEGORIES.map((category) => {
           const active = implemented.filter((item) => item.category === category);
           return (
-            <div key={category} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-panel">
+            <div key={category} className="bg-white p-4">
               <div className="text-sm font-semibold text-ink-950">{category}</div>
               <p className="mt-1 text-xs leading-4 text-slate-500">{categoryDescription(category)}</p>
               <div className="mt-3 space-y-2">
                 {active.length > 0 ? (
                   active.map((item, index) => (
-                    <div key={`${item.name}-${index}`} className="rounded-xl bg-slate-50 px-3 py-2">
+                    <div key={`${item.name}-${index}`} className="border-t border-slate-100 py-2 first:border-0">
                       <div className="flex items-center justify-between gap-2">
                         <div className="text-sm font-medium text-ink-950">{item.name}</div>
                         <span className="shrink-0 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
@@ -129,9 +149,10 @@ export default async function EvaluationsPage({
                 )}
               </div>
             </div>
-          );
-        })}
-      </section>
+            );
+          })}
+        </section>
+      </details>
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">

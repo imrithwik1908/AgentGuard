@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import { ApiUnavailable } from "@/components/api-unavailable";
 import { EmptyState } from "@/components/empty-state";
-import { MetricCard } from "@/components/metric-card";
 import { listDatasets, listProjects, listVersions } from "@/lib/api";
 import type { ApplicationVersion, Dataset, Project } from "@/lib/types";
 
@@ -48,6 +47,14 @@ function caseChecks(datasetCase: Dataset["cases"][number]): string[] {
   return checks.length > 0 ? checks : ["Runtime success"];
 }
 
+function caseName(value: string): string {
+  return value
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 export default async function DatasetsPage({
   searchParams
 }: {
@@ -72,32 +79,15 @@ export default async function DatasetsPage({
     );
   }
 
-  const caseCount = datasets.items.reduce((total, dataset) => total + dataset.cases.length, 0);
-
   return (
-    <div className="space-y-8">
-      <section className="surface rounded-[2rem] p-6">
-        <div className="text-xs font-medium uppercase tracking-[0.22em] text-cyan-700">
-          Test
-        </div>
-        <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold text-ink-950">Test Suites</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-              Test suites let you rerun the same expected behaviors after changing prompts, models,
-              retrieval, or agent logic.
-            </p>
-          </div>
-          <div className="rounded-2xl bg-ink-950 px-4 py-3 text-sm text-white">
-            Each case run becomes evidence: run + checks + score.
-          </div>
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-3 rounded-[1.5rem] border border-slate-200/80 bg-white/70 p-3 shadow-panel backdrop-blur md:flex-row">
-        <MetricCard label="Suites" value={datasets.total} detail="Behavioral test sets" tone="focus" />
-        <MetricCard label="Cases" value={caseCount} detail="Expected behaviors" />
-        <MetricCard label="Versions" value={versions.length} detail="Runnable builds" />
+    <div className="space-y-7">
+      <section className="border-b border-slate-200 pb-6 pt-2">
+        <div className="text-xs font-semibold uppercase tracking-wide text-cyan-700">Test</div>
+        <h1 className="mt-2 text-3xl font-semibold text-ink-950">Test Suites</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+          A test suite is a reusable set of scenarios your application should handle correctly.
+          Run the same suite against two versions to see what changed.
+        </p>
       </section>
 
       {datasetError ? (
@@ -106,14 +96,10 @@ export default async function DatasetsPage({
         </div>
       ) : null}
 
-      <section className="surface rounded-[2rem] p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold text-ink-950">Create a starter suite</h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Add a small set of example checks to an existing project.
-            </p>
-          </div>
+      <details className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">
+        <summary className="cursor-pointer font-medium text-slate-700">Create an example suite</summary>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+          <p className="text-sm text-slate-600">Add three starter scenarios to an existing project.</p>
           {projects.length > 0 ? (
             <form action={createDemoDatasetAction} className="flex flex-wrap gap-2">
               <select
@@ -140,15 +126,15 @@ export default async function DatasetsPage({
             </Link>
           )}
         </div>
-      </section>
+      </details>
 
       {datasets.items.length > 0 ? (
         <section className="space-y-5">
           {datasets.items.map((dataset) => {
             const runnableVersions = versionsForProject(versions, dataset.project_id);
             return (
-              <div key={dataset.id} className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white/88 shadow-panel">
-                <div className="border-b border-slate-200 bg-slate-50/70 p-5">
+              <div key={dataset.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-panel">
+                <div className="border-b border-slate-200 p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -164,46 +150,17 @@ export default async function DatasetsPage({
                     </div>
                   </div>
                   {runnableVersions.length > 0 ? (
-                    <div className="mt-4 grid gap-3 xl:grid-cols-[1fr_1.35fr]">
-                      <form
-                        action={runDatasetSuiteAction}
-                        className="rounded-2xl border border-slate-200 bg-white p-3"
-                      >
-                        {dataset.cases.map((datasetCase) => (
-                          <input key={datasetCase.id} type="hidden" name="case_id" value={datasetCase.id} />
-                        ))}
-                        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                          1. Capture runs
-                        </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                          <select
-                            name="application_version_id"
-                            className="rounded-full border border-slate-300 px-3 py-2 text-sm text-ink-950"
-                          >
-                            {runnableVersions.map((version) => (
-                              <option key={version.id} value={version.id}>
-                                {version.version}
-                              </option>
-                            ))}
-                          </select>
-                          <button className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white">
-                            Run suite
-                          </button>
-                        </div>
-                        <p className="mt-2 text-xs leading-5 text-slate-500">
-                          Generates or records application executions for one version.
-                        </p>
-                      </form>
-
+                    <div className="mt-5">
                       <form
                         action={evaluateCandidateAction}
-                        className="rounded-2xl border border-cyan-200 bg-cyan-50/70 p-3"
+                        className="flex flex-col gap-3 rounded-xl border border-cyan-200 bg-cyan-50/60 p-4 xl:flex-row xl:items-end"
                       >
                         <input type="hidden" name="dataset_id" value={dataset.id} />
-                        <div className="text-xs font-semibold uppercase tracking-wide text-cyan-700">
-                          2. Evaluate candidate
+                        <div className="min-w-52 flex-1">
+                          <div className="text-sm font-semibold text-ink-950">Compare two versions</div>
+                          <p className="mt-1 text-xs text-slate-600">AgentGuard checks each matching scenario and opens the release result.</p>
                         </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <div className="flex flex-wrap items-end gap-2">
                           <label className="flex items-center gap-2 text-xs text-slate-600">
                             Baseline
                             <select
@@ -236,26 +193,42 @@ export default async function DatasetsPage({
                             className="rounded-full bg-cyan-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
                             disabled={runnableVersions.length < 2}
                           >
-                            Evaluate
+                            Evaluate candidate
                           </button>
                         </div>
-                        <p className="mt-2 text-xs leading-5 text-slate-600">
-                          AgentGuard runs the suite checks, pairs matching cases, classifies regressions, and updates the release decision.
-                        </p>
                       </form>
+                      <details className="mt-3 text-xs text-slate-500">
+                        <summary className="cursor-pointer font-medium">Built-in test runner</summary>
+                        <form action={runDatasetSuiteAction} className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 p-3">
+                          {dataset.cases.map((datasetCase) => (
+                            <input key={datasetCase.id} type="hidden" name="case_id" value={datasetCase.id} />
+                          ))}
+                          <span>Generate simple stored runs for</span>
+                          <select name="application_version_id" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-ink-950">
+                            {runnableVersions.map((version) => <option key={version.id} value={version.id}>{version.version}</option>)}
+                          </select>
+                          <button className="rounded-lg bg-slate-800 px-3 py-2 text-sm font-medium text-white">Run suite</button>
+                        </form>
+                      </details>
                     </div>
                   ) : null}
                 </div>
                 <div className="divide-y divide-slate-100">
                   {dataset.cases.map((datasetCase) => (
-                    <div key={datasetCase.id} className="flex flex-col gap-3 p-5 lg:flex-row lg:items-center lg:justify-between">
-                      <div className="flex gap-4">
-                        <div className="mt-1 h-10 w-1.5 shrink-0 rounded-full bg-gradient-to-b from-cyan-500 to-emerald-500" />
-                        <div>
-                          <div className="font-medium text-ink-950">{datasetCase.name}</div>
-                          <div className="mt-3 grid gap-3 text-sm md:grid-cols-[1fr_1fr_auto]">
+                    <details key={datasetCase.id} className="group px-5 py-4">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="font-medium text-ink-950">{caseName(datasetCase.name)}</div>
+                          <div className="mt-1 line-clamp-1 text-sm text-slate-600">{caseQuestion(datasetCase)}</div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-3">
+                          <span className="hidden text-xs text-slate-500 sm:block">{caseChecks(datasetCase).length} checks</span>
+                          <span className="text-slate-400 transition group-open:rotate-90">›</span>
+                        </div>
+                      </summary>
+                      <div className="mt-4 grid gap-4 border-t border-slate-100 pt-4 text-sm lg:grid-cols-[1fr_1fr_auto]">
                             <div>
-                              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Input</div>
+                              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Scenario</div>
                               <div className="mt-1 text-slate-700">{caseQuestion(datasetCase)}</div>
                             </div>
                             <div>
@@ -272,10 +245,8 @@ export default async function DatasetsPage({
                                 ))}
                               </div>
                             </div>
-                          </div>
-                        </div>
                       </div>
-                      <form action={runDatasetCaseAction} className="flex flex-wrap items-end gap-2">
+                      <form action={runDatasetCaseAction} className="mt-4 flex flex-wrap items-center justify-end gap-2">
                         <input type="hidden" name="case_id" value={datasetCase.id} />
                         <select
                           name="application_version_id"
@@ -292,10 +263,10 @@ export default async function DatasetsPage({
                           className="rounded-full bg-ink-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300"
                           disabled={runnableVersions.length === 0}
                         >
-                          Run case
+                          Run this case
                         </button>
                       </form>
-                    </div>
+                    </details>
                   ))}
                 </div>
               </div>

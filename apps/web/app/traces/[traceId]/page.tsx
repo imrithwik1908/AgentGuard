@@ -115,9 +115,7 @@ export default async function TraceDetailPage({
         </Link>{" "}
         / {trace.name}
       </div>
-      <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-panel">
-        <div className="h-1 bg-gradient-to-r from-cyan-500 via-emerald-500 to-slate-900" />
-        <div className="p-5">
+      <section className="border-y border-slate-200 py-5">
         <div className="flex flex-wrap items-center gap-2 text-xs font-medium uppercase tracking-wide text-cyan-700">
           <span>Run investigation</span>
           {comparisonRole ? (
@@ -132,50 +130,38 @@ export default async function TraceDetailPage({
           <span><strong className="text-ink-950">Version:</strong> {version?.version ?? trace.application_version_id}</span>
           <span><strong className="text-ink-950">Started:</strong> {formatDateTime(trace.started_at)}</span>
         </div>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          {comparisonRole
-            ? `This is the ${comparisonRole} execution in the selected release comparison. Baseline and candidate are roles in that comparison; the stored run belongs to version ${version?.version ?? trace.application_version_id}.`
-            : "A run belongs to an application version. It becomes a baseline or candidate only when you select it in a release comparison."}
-        </p>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <div className="rounded-2xl bg-slate-50 p-4">
+        {comparisonRole ? <p className="mt-2 text-sm text-slate-600">This is the {comparisonRole} run from the selected comparison.</p> : null}
+        <div className="mt-5 grid divide-y divide-slate-200 border-y border-slate-200 md:grid-cols-3 md:divide-x md:divide-y-0">
+          <div className="py-4 md:pr-5">
             <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Execution</div>
             <div className="mt-2 text-sm font-semibold text-ink-950">
               {trace.status === "OK" ? "Completed successfully" : trace.status}
             </div>
-            <div className="mt-1 text-xs leading-5 text-slate-500">
-              Whether the application run crashed or completed.
-            </div>
           </div>
-          <div className="rounded-2xl bg-slate-50 p-4">
+          <div className="py-4 md:px-5">
             <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Behavior</div>
             <div className="mt-2 text-sm font-semibold text-ink-950">
               {failedChecks.length > 0
                 ? `Failed ${failedChecks.length} evaluation${failedChecks.length === 1 ? "" : "s"}`
                 : evaluations.items.length > 0 ? "All recorded checks passed" : "Not evaluated yet"}
             </div>
-            <div className="mt-1 text-xs leading-5 text-slate-500">
-              Whether the completed output satisfied stored checks.
-            </div>
           </div>
-          <div className="rounded-2xl bg-slate-50 p-4">
+          <div className="py-4 md:pl-5">
             <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Likely area</div>
             <div className="mt-2 text-sm font-semibold text-ink-950">
               {likelyFailureArea ?? "No failure evidence yet"}
             </div>
-            <div className="mt-1 text-xs leading-5 text-slate-500">
-              Category, not a causal claim.
-            </div>
+            <div className="mt-1 text-xs leading-5 text-slate-500">First failed check category.</div>
           </div>
         </div>
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="mt-5 grid gap-5 lg:grid-cols-2 lg:divide-x lg:divide-slate-200">
+          <div>
             <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Application answer</div>
             <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
               {answer ?? "No generated answer was recorded for this run."}
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="lg:pl-5">
             <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Evidence used</div>
             <dl className="mt-2 space-y-3 text-sm">
               <div><dt className="font-medium text-ink-950">Retrieved sources</dt><dd className="mt-1 text-slate-600">{sources.length ? sources.join(", ") : "None recorded"}</dd></div>
@@ -183,29 +169,15 @@ export default async function TraceDetailPage({
             </dl>
           </div>
         </div>
-        </div>
       </section>
 
-      <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-panel">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
+      <section className="border-b border-slate-200 pb-5">
+        <div>
             <div className="text-xs font-medium uppercase tracking-wide text-cyan-700">Checks</div>
-            <h2 className="mt-2 text-lg font-semibold text-ink-950">Evaluation evidence for this run</h2>
+            <h2 className="mt-2 text-lg font-semibold text-ink-950">Did this run behave correctly?</h2>
             <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
-              A check is a stored piece of evidence. It can measure answer behavior, retrieval,
-              agent actions, or operational reliability. Internal evaluator IDs stay tucked away.
+              Execution health says whether the app ran. These checks say whether its answer and actions met the scenario.
             </p>
-          </div>
-          <div className="max-w-sm text-right">
-            <form action={createHealthEvaluationForTrace}>
-              <button className="rounded-full bg-ink-900 px-4 py-2 text-sm font-medium text-white hover:bg-ink-800">
-                Check execution health
-              </button>
-            </form>
-            <p className="mt-2 text-xs leading-5 text-slate-500">
-              Checks completion, step errors, a 2-second latency budget, and whether enough debug evidence was recorded. It does not judge answer correctness.
-            </p>
-          </div>
         </div>
         {evaluationError ? (
           <div className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -213,16 +185,16 @@ export default async function TraceDetailPage({
           </div>
         ) : null}
         {evaluations.items.length > 0 ? (
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className="mt-4 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200">
             {evaluations.items.map((evaluation) => {
               const reasoning = explainEvaluation(evaluation);
               return (
               <div
                 key={evaluation.id}
-                className={`rounded-2xl border p-4 ${
+                className={`p-4 ${
                   evaluation.passed
-                    ? "border-emerald-200 bg-emerald-50/70"
-                    : "border-red-200 bg-red-50/70"
+                    ? "bg-white"
+                    : "bg-red-50/50"
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -236,20 +208,17 @@ export default async function TraceDetailPage({
                     <p className="mt-1 text-sm leading-6 text-slate-700">
                       {reasoning.summary || checkMeaning(evaluation.evaluator_name, evaluation.passed)}
                     </p>
-                    <div className="mt-3 rounded-xl bg-white/75 p-3 text-xs leading-5 text-slate-700">
-                      <div className="font-semibold text-ink-950">How this score was calculated</div>
-                      <div className="mt-1">{reasoning.calculation}</div>
-                      {reasoning.missing.length ? (
-                        <div className="mt-1 text-red-700">Missing: {reasoning.missing.join(", ")}</div>
-                      ) : null}
-                      <div className="mt-2 border-t border-slate-200 pt-2 text-slate-500">
-                        {evaluationReliability(evaluation)}
-                      </div>
-                    </div>
                     <div className="mt-1 text-xs text-slate-500">{formatDateTime(evaluation.created_at)}</div>
-                    <details className="mt-1 text-xs text-slate-500">
-                      <summary className="cursor-pointer">Advanced evaluator details</summary>
-                      <dl className="mt-2 grid gap-2 rounded-xl bg-white/70 p-3 font-mono">
+                    <details className="mt-2 text-xs text-slate-500">
+                      <summary className="cursor-pointer font-medium text-slate-600">Why this result?</summary>
+                      <div className="mt-2 rounded-lg bg-white p-3 leading-5 text-slate-700">
+                        <div>{reasoning.calculation}</div>
+                        {reasoning.missing.length ? <div className="mt-1 text-red-700">Missing: {reasoning.missing.join(", ")}</div> : null}
+                        <div className="mt-2 border-t border-slate-100 pt-2 text-slate-500">{evaluationReliability(evaluation)}</div>
+                      </div>
+                      <details className="mt-2">
+                        <summary className="cursor-pointer">Technical details</summary>
+                      <dl className="mt-2 grid gap-2 rounded-lg bg-slate-950 p-3 font-mono text-slate-200">
                         <div>raw score: {formatScore(evaluation.score)}</div>
                         <div>threshold: {formatScore(evaluation.threshold)}</div>
                         <div>evaluator: {evaluation.evaluator_name}</div>
@@ -257,6 +226,7 @@ export default async function TraceDetailPage({
                         <div>method: {evaluation.method}</div>
                         {evaluation.judge_model ? <div>judge model: {evaluation.judge_model}</div> : null}
                       </dl>
+                      </details>
                     </details>
                   </div>
                   <EvaluationStatusBadge status={evaluation.status} />
@@ -275,7 +245,17 @@ export default async function TraceDetailPage({
         )}
       </section>
 
-      <details className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-panel">
+      <details className="rounded-xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
+        <summary className="cursor-pointer font-medium text-slate-700">Run additional execution checks</summary>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
+          <p className="max-w-2xl text-sm text-slate-600">Checks completion, step errors, latency, and whether enough debugging evidence was recorded. It does not judge answer correctness.</p>
+          <form action={createHealthEvaluationForTrace}>
+            <button className="rounded-lg bg-ink-900 px-4 py-2 text-sm font-medium text-white hover:bg-ink-800">Run execution checks</button>
+          </form>
+        </div>
+      </details>
+
+      <details className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <summary className="cursor-pointer text-sm font-semibold text-ink-950">
           View execution details
         </summary>

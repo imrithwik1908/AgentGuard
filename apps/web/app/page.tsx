@@ -2,11 +2,9 @@ import Link from "next/link";
 
 import { ApiUnavailable } from "@/components/api-unavailable";
 import { ProductStatus } from "@/components/product-status";
-import { StatusBadge } from "@/components/status-badge";
 import {
   comparePairedVersions,
   listProjects,
-  listTraces,
   listVersions
 } from "@/lib/api";
 import { formatPercent } from "@/lib/format";
@@ -60,12 +58,10 @@ export default async function HomePage({
 
   let projects;
   let versions;
-  let traces;
   let comparison: PairedVersionComparison | null = null;
   try {
     projects = await listProjects();
     versions = (await Promise.all(projects.map((project) => listVersions(project.id)))).flat();
-    traces = await listTraces({ limit: 100 });
     const defaultPair = findDefaultComparisonPair(projects, versions);
     if (defaultPair) {
       comparison = await comparePairedVersions(defaultPair.baseline.id, defaultPair.candidate.id);
@@ -91,7 +87,6 @@ export default async function HomePage({
   const releaseState = deriveReleaseState(buckets, comparison);
   const label = overallLabel(comparison, releaseState);
   const changes = pair ? summarizeConfigChanges(pair.baseline, pair.candidate) : [];
-  const recentFailure = traces.items.find((trace) => trace.status === "ERROR") ?? null;
   const nextAction = !pair
     ? { label: "Set up a project", href: "/projects" }
     : buckets.regressed.length > 0
@@ -107,14 +102,13 @@ export default async function HomePage({
         : { label: "Run a test suite", href: "/datasets" };
   return (
     <div className="space-y-6">
-      <section className="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)]">
-        <div className={`rounded-[2rem] border p-7 shadow-panel ${decisionStyle(label)}`}>
+      <section className={`rounded-2xl border p-7 shadow-panel ${decisionStyle(label)}`}>
           <div className="text-xs font-medium uppercase tracking-[0.22em] opacity-70">
             Latest candidate signal
           </div>
           <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h1 className="text-4xl font-semibold tracking-normal">{releaseState.title}</h1>
+              <h1 className="text-3xl font-semibold tracking-normal">{releaseState.title}</h1>
               {pair ? (
                 <p className="mt-3 max-w-3xl text-sm leading-6 opacity-80">
                   {pair.project.name}: candidate <strong>{pair.candidate.version}</strong> compared
@@ -137,7 +131,7 @@ export default async function HomePage({
             ) : null}
           </div>
 
-          <div className="mt-6 grid gap-3 md:grid-cols-3">
+          <div className="mt-6 grid gap-3 border-y border-current/10 py-4 md:grid-cols-3">
             <SignalMetric
               label="Regressions"
               value={String(buckets.regressed.length)}
@@ -181,43 +175,15 @@ export default async function HomePage({
               {demoError}
             </div>
           ) : null}
-        </div>
-
-        <aside className="surface rounded-[2rem] p-5">
-          <div className="text-xs font-medium uppercase tracking-[0.2em] text-cyan-700">
-            Start here
-          </div>
-          <h2 className="mt-2 text-xl font-semibold text-ink-950">One workflow, five steps</h2>
-          <div className="mt-4 space-y-2">
-            {[
-              ["Instrument", "Connect the SDK to your AI app."],
-              ["Test", "Run representative cases."],
-              ["Evaluate", "Check expected behavior."],
-              ["Investigate", "Open run details only for failures."],
-              ["Release", "Ship or block with evidence."]
-            ].map(([verb, detail], index) => (
-              <div key={verb} className="flex gap-3 rounded-2xl bg-white/75 p-3">
-                <div className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-ink-950 text-xs font-semibold text-white">
-                  {index + 1}
-                </div>
-                <div>
-                  <div className="text-sm font-semibold text-ink-950">{verb}</div>
-                  <div className="text-sm text-slate-600">{detail}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </aside>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-        <div className="surface rounded-[2rem] p-5">
+      {pair ? <section className="border-y border-slate-200 py-5">
           <div className="text-xs font-medium uppercase tracking-[0.2em] text-cyan-700">
-            What changed?
+            Observed changes
           </div>
-          <div className="mt-3 grid gap-2">
+          <div className="mt-3 flex flex-wrap gap-3">
             {changes.slice(0, 3).map((change) => (
-              <div key={change.label} className="rounded-2xl bg-white/75 p-3">
+              <div key={`${change.label}:${change.field ?? ""}`} className="min-w-56 border-l-2 border-cyan-500 py-1 pl-3">
                 <div className="text-sm font-medium text-ink-950">{change.label}</div>
                 <div className="mt-1 text-xs text-slate-600">
                   {change.evidence === "observed"
@@ -228,44 +194,16 @@ export default async function HomePage({
             ))}
           </div>
           <p className="mt-3 text-xs leading-5 text-slate-500">
-            Observed config differences are facts, not causal claims.
+            These settings changed alongside the result; they are not proof of causality.
           </p>
-        </div>
-
-        <div className="surface rounded-[2rem] p-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="text-xs font-medium uppercase tracking-[0.2em] text-cyan-700">
-                Needs attention
-              </div>
-              <h2 className="mt-2 text-xl font-semibold text-ink-950">
-                {recentFailure ? recentFailure.name : "No recent failed runs"}
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                {recentFailure
-                  ? String(recentFailure.error?.message ?? "A run recorded an ERROR status.")
-                  : "When evaluations or runs fail, AgentGuard will link you to the investigation surface here."}
-              </p>
-            </div>
-            {recentFailure ? <StatusBadge status="ERROR" /> : <StatusBadge status="OK" />}
-          </div>
-          <div className="mt-5">
-            <Link
-              href={recentFailure ? `/traces/${recentFailure.id}` : "/traces"}
-              className="rounded-full bg-ink-950 px-4 py-2 text-sm font-medium text-white hover:bg-ink-800"
-            >
-              {recentFailure ? "Investigate run" : "View runs"}
-            </Link>
-          </div>
-        </div>
-      </section>
+      </section> : null}
     </div>
   );
 }
 
 function SignalMetric({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div className="rounded-2xl bg-white/70 p-4 shadow-sm">
+    <div className="px-4 py-2 first:pl-0">
       <div className="text-xs font-medium uppercase tracking-wide opacity-60">{label}</div>
       <div className="mt-2 text-2xl font-semibold">{value}</div>
       <div className="mt-1 text-xs opacity-70">{detail}</div>
