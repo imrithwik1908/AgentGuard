@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import math
 import os
@@ -193,6 +194,42 @@ def response_object(payload: dict[str, Any]) -> SimpleNamespace:
     )
 
 
+@functools.lru_cache(maxsize=1)
+def load_local_model(model_id: str) -> tuple[Any, Any]:
+    try:
+        from mlx_lm import load
+    except ImportError as exc:
+        raise RuntimeError(
+            "local model support requires: python -m pip install mlx-lm"
+        ) from exc
+    return load(model_id)
+
+
+def local_completion(messages: list[dict[str, str]], model_id: str) -> SimpleNamespace:
+    from mlx_lm import generate
+
+    model, tokenizer = load_local_model(model_id)
+    prompt = tokenizer.apply_chat_template(
+        messages,
+        tokenize=False,
+        add_generation_prompt=True,
+    )
+    answer = generate(model, tokenizer, prompt=prompt, max_tokens=220, verbose=False).strip()
+    return response_object(
+        {
+            "id": f"local-{time.time_ns()}",
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "model": model_id,
+            "choices": [{"message": {"content": answer}, "finish_reason": "stop"}],
+            "usage": {
+                "prompt_tokens": len(tokenizer.encode(prompt)),
+                "completion_tokens": len(tokenizer.encode(answer)),
+            },
+        }
+    )
+
+
 def api_headers(api_key: str) -> dict[str, str]:
     return {"content-type": "application/json", "x-agentguard-api-key": api_key}
 
@@ -271,15 +308,20 @@ def run_case(
     dataset_case_id: str | None,
     version: str,
     offline_fixture: bool,
+    local_model: str | None,
 ) -> dict[str, Any]:
     base_url = os.environ["AGENTGUARD_BASE_URL"]
     api_key = os.environ["AGENTGUARD_API_KEY"]
     project = os.environ["AGENTGUARD_PROJECT"]
-    model = (
-        "offline-extractive-fixture"
-        if offline_fixture
-        else os.getenv("LLM_MODEL", "gpt-4.1-mini")
-    )
+    if local_model:
+        model = local_model
+        provider = "local-mlx"
+    elif offline_fixture:
+        model = "offline-extractive-fixture"
+        provider = "offline-fixture"
+    else:
+        model = os.getenv("LLM_MODEL", "gpt-4.1-mini")
+        provider = "openai-compatible"
     timeout = float(os.getenv("LLM_TIMEOUT_SECONDS", "30"))
     version_config = VERSIONS[version]
     notes = load_json(CORPUS_PATH)
@@ -293,8 +335,7 @@ def run_case(
     )
     if offline_fixture:
         raw_model_client = CompatibleClient(OfflineFixtureCompletions())
-        provider = "offline-fixture"
-    else:
+    elif not local_model:
         provider_key = os.environ["LLM_API_KEY"]
         provider_url = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")
         raw_model_client = CompatibleClient(
@@ -304,12 +345,13 @@ def run_case(
                 timeout_seconds=timeout,
             )
         )
-        provider = "openai-compatible"
-    model_client = (
-        raw_model_client
-        if offline_fixture
-        else instrument_openai(raw_model_client, agentguard=agentguard)
-    )
+    model_client = None
+    if not local_model:
+        model_client = (
+            raw_model_client
+            if offline_fixture
+            else instrument_openai(raw_model_client, agentguard=agentguard)
+        )
     trace_input: dict[str, Any] = {"question": question}
     if dataset_case_id:
         trace_input["dataset_case_id"] = dataset_case_id
@@ -350,7 +392,20 @@ def run_case(
             "messages": messages,
             "temperature": 0.1 if version == "prod-v1" else 0.3,
         }
-        if offline_fixture:
+        if local_model:
+            with agentguard.llm_call(
+                "local_model.generate",
+                provider=provider,
+                model=model,
+                input={"messages": messages},
+            ) as span:
+                completion = local_completion(messages, model)
+                span.set_attributes(
+                    input_tokens=completion.usage.get("prompt_tokens"),
+                    output_tokens=completion.usage.get("completion_tokens"),
+                )
+                span.set_output({"answer": completion.choices[0].message.content})
+        elif offline_fixture:
             with agentguard.llm_call(
                 "offline_fixture.generate",
                 provider=provider,
@@ -391,6 +446,12 @@ def main() -> int:
     parser.add_argument("--question", help="Run one ad hoc question")
     parser.add_argument("--case-limit", type=int)
     parser.add_argument(
+        "--local-model",
+        nargs="?",
+        const="mlx-community/Qwen2.5-0.5B-Instruct-4bit",
+        help="use a small real MLX model; optionally provide another MLX model ID",
+    )
+    parser.add_argument(
         "--offline-fixture",
         action="store_true",
         help="Use the lightweight extractive fixture for plumbing tests; this is not an LLM.",
@@ -415,8 +476,10 @@ def main() -> int:
         print(json.dumps({"dataset_id": suite["id"], "name": suite["name"]}, indent=2))
         return 0
 
-    if not args.offline_fixture and not os.getenv("LLM_API_KEY"):
-        parser.error("LLM_API_KEY is required unless --offline-fixture is used")
+    if not args.offline_fixture and not args.local_model and not os.getenv("LLM_API_KEY"):
+        parser.error("LLM_API_KEY is required unless --local-model or --offline-fixture is used")
+    if args.offline_fixture and args.local_model:
+        parser.error("choose either --local-model or --offline-fixture, not both")
 
     if args.question:
         cases = [{"name": "ad-hoc-question", "question": args.question}]
@@ -440,6 +503,7 @@ def main() -> int:
                 dataset_case_id=case.get("id"),
                 version=args.version,
                 offline_fixture=args.offline_fixture,
+                local_model=args.local_model,
             )
             print(json.dumps({"case": case["name"], **result}, indent=2))
         except Exception as exc:  # noqa: BLE001 - continue the suite after one case fails.

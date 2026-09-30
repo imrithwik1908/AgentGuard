@@ -1,9 +1,9 @@
 # Meeting Notes Assistant Smoke Test
 
-This folder behaves like a small external application owned by a user named Bryan. It retrieves
+This folder behaves like a small external application owned by an AgentGuard user. It retrieves
 from local meeting notes, looks up meeting dates and participants with a tool, sends the resulting
-evidence to an OpenAI-compatible chat-completions endpoint, and records the complete run through
-the public AgentGuard Python SDK.
+evidence to a real language model, and records the complete run through the public AgentGuard
+Python SDK.
 
 The experiment compares two plausible application configurations:
 
@@ -24,15 +24,16 @@ package from this checkout:
 python3.12 -m venv examples/real-user-smoke-test/.venv
 source examples/real-user-smoke-test/.venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install packages/python-sdk
+python -m pip install packages/python-sdk mlx-lm
 ```
 
-No heavyweight local model is installed. The standard-library model client works with an
-OpenAI-compatible `/chat/completions` endpoint already supported by AgentGuard.
+The walkthrough below uses `mlx-community/Qwen2.5-0.5B-Instruct-4bit`, a small quantized real LLM
+for Apple Silicon. It downloads once and does not require a provider API key. The application also
+supports any OpenAI-compatible `/chat/completions` endpoint.
 
-## 2. Create Bryan's AgentGuard Resources
+## 2. Create Your AgentGuard Resources
 
-Sign in to AgentGuard as Bryan. In **Setup**:
+Sign in to AgentGuard. In **Setup**:
 
 1. Create a project named **Meeting Notes Assistant** with slug `meeting-notes-assistant`.
 2. Create version `prod-v1` with retrieval configuration `{"top_k": 3}`.
@@ -49,7 +50,9 @@ export AGENTGUARD_PROJECT=meeting-notes-assistant
 export AGENTGUARD_PROJECT_ID='00000000-0000-0000-0000-000000000000'
 ```
 
-Configure any OpenAI-compatible provider. Do not commit this key.
+For the local model walkthrough, no LLM environment variables are needed. To use an external
+OpenAI-compatible provider instead, configure these values and omit `--local-model` below. Never
+commit the provider key.
 
 ```bash
 export LLM_BASE_URL='https://api.openai.com/v1'
@@ -78,7 +81,8 @@ export AGENTGUARD_DATASET_ID='00000000-0000-0000-0000-000000000000'
 ```bash
 python examples/real-user-smoke-test/app.py \
   --dataset-id "$AGENTGUARD_DATASET_ID" \
-  --version prod-v1
+  --version prod-v1 \
+  --local-model
 ```
 
 ## 5. Run `candidate-v2`
@@ -86,7 +90,8 @@ python examples/real-user-smoke-test/app.py \
 ```bash
 python examples/real-user-smoke-test/app.py \
   --dataset-id "$AGENTGUARD_DATASET_ID" \
-  --version candidate-v2
+  --version candidate-v2 \
+  --local-model
 ```
 
 Each command runs all eight cases and generates one trace per case. Every trace includes a
