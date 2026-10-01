@@ -22,7 +22,7 @@ individual cases that worked before. AgentGuard reruns representative behaviors 
 baseline and a candidate, shows exactly what changed, and derives an auditable release
 recommendation from stored evidence.
 
-The product flow is:
+The six-step product flow is:
 
 **Instrument -> Run -> Evaluate -> Compare -> Diagnose -> Release**
 
@@ -158,6 +158,10 @@ Deterministic operational: runtime success and latency budget.
 LLM judge: semantic correctness, groundedness, retrieval relevance, and tool selection. AI results
 store evaluator/rubric versions, provider/model, prompt-template version, threshold, score,
 explanation, evidence, and timestamp. They are evidence, not ground truth.
+
+For the exact score formulas, background-job lifecycle, pairing rules, comparison coverage, LLM
+judge contract, and release-policy defaults, read [How AgentGuard Evaluates An AI
+Application](docs/evaluations.md).
 
 ## Release Decisions
 

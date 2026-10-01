@@ -55,18 +55,19 @@ Purpose:
 
 Use Test Suites to manage representative cases.
 
-Current supported case fields:
+Current supported case fields include:
 
 - input;
-- expected substring/content.
-
-Future case fields may include:
-
+- expected substring/content or output;
+- semantic requirement;
 - expected semantic answer;
 - expected retrieved source;
 - expected tool;
-- forbidden behavior;
-- latency and cost constraints.
+- forbidden tool/action;
+- JSON Schema;
+- latency constraint;
+- critical-case marker;
+- explicit evaluator list.
 
 Good test-suite cases are:
 
@@ -95,13 +96,12 @@ Evaluations are evidence. They are usually not the primary user journey.
 Current categories:
 
 - Answer Quality;
-- Operational.
-
-Planned categories:
-
 - Retrieval;
 - Agent Behavior;
-- richer Answer Quality checks.
+- Operational.
+
+Deterministic checks run without a model. Semantic correctness, groundedness, retrieval relevance,
+and tool selection run when a judge provider is configured. The page states which mode is active.
 
 ## Releases
 

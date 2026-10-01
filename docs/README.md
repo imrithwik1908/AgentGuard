@@ -6,7 +6,7 @@ It answers one product question:
 
 > I changed something in my AI application. Did it get better or worse, what regressed, why, and should I ship it?
 
-AgentGuard is organized around five verbs:
+AgentGuard is organized around six steps:
 
 **Instrument -> Run -> Evaluate -> Compare -> Diagnose -> Release**
 
@@ -15,10 +15,22 @@ AgentGuard is organized around five verbs:
 If you are new to AgentGuard, read these in order:
 
 1. [Getting Started](getting-started.md): build the first local workflow.
-2. [Core Concepts](concepts.md): learn the vocabulary used in the app.
-3. [Python SDK](sdk.md): instrument an AI application.
-4. [Web App Guide](web-app.md): use the control plane.
-5. [Real LLM Demo](real-llm-demo.md): connect a real LLM-backed app.
+2. [How Evaluation Works](evaluations.md): understand evidence, every built-in score, AI judging,
+   comparison, diagnosis, and release decisions.
+3. [Core Concepts](concepts.md): learn the vocabulary used in the app.
+4. [Python SDK](sdk.md): instrument an AI application.
+5. [Web App Guide](web-app.md): use the control plane.
+6. [Real LLM Demo](real-llm-demo.md): connect a real LLM-backed app.
+
+The evaluation guide is the canonical answer to these questions:
+
+- Which evidence does each check read?
+- How is the score calculated?
+- Why did a check pass or fail?
+- When is an LLM judge used?
+- How are historical results prevented from corrupting a comparison?
+- Why is a scenario regressed, improved, unchanged, or not comparable?
+- How does the release engine reach `PASS`, `BLOCK`, or `REVIEW`?
 
 ## Documentation Structure
 
@@ -48,7 +60,7 @@ These docs follow the Diátaxis documentation model:
 ### Explanation
 
 - [Core Concepts](concepts.md)
-- [Evaluations](evaluations.md)
+- [How AgentGuard Evaluates An AI Application](evaluations.md)
 - [Troubleshooting](troubleshooting.md)
 
 ## What Exists Today

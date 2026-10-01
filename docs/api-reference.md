@@ -188,17 +188,35 @@ Query parameters:
 - `baseline_version_id`
 - `candidate_version_id`
 
-Note:
-
-The frontend performs stricter paired behavioral test-case classification. Aggregate comparison alone should not be treated as proof of regression.
+Aggregate statistics summarize the latest selected evidence. Use the paired comparison endpoint for
+regression classification because it pairs the same test case and evaluator across versions.
 
 ### `GET /api/v1/evaluations/release-decision`
 
 Return the current backend release-decision object.
 
-Note:
+The backend release engine derives its decision from paired case/evaluator evidence, comparison
+coverage, pass rate, score movement, runtime failures, critical cases, and configured policy.
 
-The current backend decision is aggregate-based. The frontend now presents stricter user-facing states based on paired test-case evidence.
+### `GET /api/v1/evaluations/compare/paired`
+
+Pair the same test case and evaluator across baseline and candidate. Results are classified as
+`REGRESSED`, `IMPROVED`, `UNCHANGED`, or `NOT_COMPARABLE` using the latest terminal job-scoped
+evidence.
+
+### `POST /api/v1/evaluations/orchestrate`
+
+Create background jobs for the selected test suite, baseline, candidate, and evaluator set. The
+response includes job records, judge capability flags, and warnings when semantic judging was
+requested but is unavailable.
+
+### `GET /api/v1/evaluations/capabilities`
+
+Report whether AI judges are configured, plus the active judge provider/model and available
+semantic evaluator names. This endpoint requires browser authentication.
+
+See [How AgentGuard Evaluates An AI Application](evaluations.md) for exact scoring and pairing
+semantics.
 
 ## Test Suites
 
