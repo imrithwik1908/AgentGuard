@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { AuthForm } from "@/components/auth-form";
 import { getSession } from "@/lib/session";
 
 function Field({
@@ -70,17 +71,10 @@ export default async function AuthPage({
             </p>
           </div>
 
-          <div className="grid gap-3 text-sm">
-            {[
-              ["Browser session", "Used by humans to review projects, runs, evaluations, and releases."],
-              ["Workspace boundary", "Keeps projects, traces, API keys, and decisions isolated by tenant."],
-              ["SDK API key", "Created after login and used by your instrumented AI application."]
-            ].map(([title, copy]) => (
-              <div key={title} className="rounded-2xl border border-white/10 bg-white/7 p-4">
-                <div className="font-medium">{title}</div>
-                <div className="mt-1 text-xs leading-5 text-slate-300">{copy}</div>
-              </div>
-            ))}
+          <div className="border-y border-white/10 py-5 text-sm text-slate-300">
+            <p><strong className="text-white">Connect your app.</strong> Send runs with a project API key.</p>
+            <p className="mt-3"><strong className="text-white">Test a change.</strong> Run the same scenarios against two versions.</p>
+            <p className="mt-3"><strong className="text-white">Decide with evidence.</strong> Review regressions before release.</p>
           </div>
         </div>
       </section>
@@ -113,7 +107,7 @@ export default async function AuthPage({
           ) : null}
 
           {mode === "login" ? (
-            <form action="/auth/login" method="post" className="space-y-4">
+            <AuthForm action="/auth/login" idleLabel="Sign in" pendingLabel="Signing in..." tone="dark">
               <div>
                 <h2 className="text-2xl font-semibold text-ink-950">Welcome back</h2>
                 <p className="mt-1 text-sm text-slate-600">
@@ -128,12 +122,9 @@ export default async function AuthPage({
                 required={false}
               />
               <Field label="Password" name="password" type="password" placeholder="••••••••" />
-              <button className="w-full rounded-2xl bg-ink-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800">
-                Sign in
-              </button>
-            </form>
+            </AuthForm>
           ) : (
-            <form action="/auth/register" method="post" className="space-y-4">
+            <AuthForm action="/auth/register" idleLabel="Create workspace" pendingLabel="Creating workspace..." tone="cyan">
               <div>
                 <h2 className="text-2xl font-semibold text-ink-950">Create your workspace</h2>
                 <p className="mt-1 text-sm text-slate-600">
@@ -149,10 +140,7 @@ export default async function AuthPage({
                 <Field label="Workspace slug" name="workspace_slug" placeholder="research-agent" />
               </div>
               <Field label="Password" name="password" type="password" placeholder="At least 8 characters" />
-              <button className="w-full rounded-2xl bg-cyan-700 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-cyan-800">
-                Create workspace
-              </button>
-            </form>
+            </AuthForm>
           )}
         </div>
       </section>
