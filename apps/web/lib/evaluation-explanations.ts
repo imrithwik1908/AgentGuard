@@ -283,3 +283,81 @@ export function spanEvidenceSummary(span: Span): string[] {
   }
   return [];
 }
+
+export type ApplicationStage = "input" | "retrieval" | "tool" | "workflow" | "generation" | "output";
+
+export interface ObservedApplicationStage {
+  id: ApplicationStage;
+  label: string;
+  detail: string;
+  status: "OK" | "ERROR" | "UNKNOWN";
+}
+
+const stageLabels: Record<ApplicationStage, string> = {
+  input: "Question",
+  retrieval: "Retrieve evidence",
+  tool: "Use tools",
+  workflow: "Coordinate steps",
+  generation: "Generate answer",
+  output: "Return answer"
+};
+
+function stageForSpan(span: Span): ApplicationStage | null {
+  if (span.type === "RETRIEVER" || span.type === "EMBEDDING" || span.type === "RERANKER") return "retrieval";
+  if (span.type === "TOOL") return "tool";
+  if (span.type === "LLM") return "generation";
+  if (span.type === "AGENT" || span.type === "CHAIN" || span.type === "CUSTOM") return "workflow";
+  return null;
+}
+
+export function observedApplicationFlow(trace: Trace | null): ObservedApplicationStage[] {
+  if (!trace) return [];
+  const stages = new Map<ApplicationStage, ObservedApplicationStage>();
+  stages.set("input", {
+    id: "input",
+    label: stageLabels.input,
+    detail: "The application received the test-case input.",
+    status: trace.input ? "OK" : "UNKNOWN"
+  });
+
+  const sorted = [...trace.spans].sort(
+    (left, right) => Date.parse(left.started_at) - Date.parse(right.started_at)
+  );
+  for (const span of sorted) {
+    const stage = stageForSpan(span);
+    if (!stage) continue;
+    const current = stages.get(stage);
+    const failed = span.status === "ERROR" || current?.status === "ERROR";
+    const names = current?.detail
+      ? new Set(current.detail.split(", ").map((value) => value.trim()))
+      : new Set<string>();
+    names.add(span.name);
+    stages.set(stage, {
+      id: stage,
+      label: stageLabels[stage],
+      detail: [...names].join(", "),
+      status: failed ? "ERROR" : "OK"
+    });
+  }
+
+  stages.set("output", {
+    id: "output",
+    label: stageLabels.output,
+    detail: traceAnswer(trace)
+      ? "The run returned a recorded answer."
+      : "No answer was recorded for this run.",
+    status: trace.status === "ERROR" ? "ERROR" : trace.output ? "OK" : "UNKNOWN"
+  });
+  return [...stages.values()];
+}
+
+export function firstSupportedDifference(evaluations: EvaluationResult[]): ApplicationStage | null {
+  const failed = evaluations.filter((evaluation) => !evaluation.passed);
+  if (!failed.length) return null;
+  const categories = failed.map((evaluation) => evaluatorInfo(evaluation.evaluator_name).category);
+  if (categories.includes("Retrieval")) return "retrieval";
+  if (categories.includes("Agent Behavior")) return "tool";
+  if (categories.includes("Answer Quality")) return "generation";
+  if (categories.includes("Operational")) return "workflow";
+  return null;
+}

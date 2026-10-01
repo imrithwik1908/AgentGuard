@@ -101,6 +101,10 @@ textarea {
   animation: pulse-ring 1.8s ease-in-out infinite;
 }
 
+details > summary {
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
 @keyframes pulse-ring {
   0%,
   100% {
@@ -108,5 +112,16 @@ textarea {
   }
   50% {
     box-shadow: 0 0 0 10px rgba(8, 145, 178, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }

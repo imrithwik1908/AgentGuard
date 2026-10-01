@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { explainEvaluation, observedRuntimeChanges, retrievalIds, traceAnswer } from "@/lib/evaluation-explanations";
+import {
+  explainEvaluation,
+  firstSupportedDifference,
+  observedApplicationFlow,
+  observedRuntimeChanges,
+  retrievalIds,
+  traceAnswer
+} from "@/lib/evaluation-explanations";
 import type { EvaluationResult, Trace } from "@/lib/types";
 
 function evaluation(overrides: Partial<EvaluationResult> = {}): EvaluationResult {
@@ -84,5 +91,71 @@ describe("evaluation explanations", () => {
       before: "3",
       after: "6"
     });
+  });
+
+  it("builds an application flow only from recorded spans", () => {
+    const run = trace("v1", 3, "A supported answer");
+    run.spans = [
+      {
+        id: "span-retrieval",
+        trace_id: run.id,
+        parent_span_id: null,
+        external_span_id: null,
+        type: "RETRIEVER",
+        name: "search meeting notes",
+        status: "OK",
+        input: null,
+        output: { documents: [{ id: "notes-1" }] },
+        metadata: {},
+        attributes: {},
+        provider: null,
+        model_name: null,
+        input_tokens: null,
+        output_tokens: null,
+        estimated_cost: null,
+        started_at: "2026-09-18T00:00:00Z",
+        ended_at: "2026-09-18T00:00:00.100Z",
+        duration_ms: 100,
+        error: null,
+        created_at: "2026-09-18T00:00:00.100Z"
+      },
+      {
+        id: "span-model",
+        trace_id: run.id,
+        parent_span_id: null,
+        external_span_id: null,
+        type: "LLM",
+        name: "generate answer",
+        status: "OK",
+        input: null,
+        output: { answer: "A supported answer" },
+        metadata: {},
+        attributes: {},
+        provider: "test",
+        model_name: "judge-test",
+        input_tokens: 10,
+        output_tokens: 5,
+        estimated_cost: null,
+        started_at: "2026-09-18T00:00:00.100Z",
+        ended_at: "2026-09-18T00:00:00.500Z",
+        duration_ms: 400,
+        error: null,
+        created_at: "2026-09-18T00:00:00.500Z"
+      }
+    ];
+
+    expect(observedApplicationFlow(run).map((stage) => stage.id)).toEqual([
+      "input",
+      "retrieval",
+      "generation",
+      "output"
+    ]);
+  });
+
+  it("highlights the earliest supported failed evaluation stage", () => {
+    expect(firstSupportedDifference([
+      evaluation({ evaluator_name: "builtin.keyword_coverage", passed: false }),
+      evaluation({ id: "evaluation-2", evaluator_name: "builtin.required_source", passed: false })
+    ])).toBe("retrieval");
   });
 });
