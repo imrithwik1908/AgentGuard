@@ -75,7 +75,7 @@ export default async function DatasetsPage({
 
   return (
     <div className="space-y-7">
-      <section className="border-b border-slate-200 pb-6 pt-2">
+      <section className="page-intro">
         <div className="text-xs font-semibold uppercase tracking-wide text-cyan-700">Test</div>
         <h1 className="mt-2 text-3xl font-semibold text-ink-950">Test Suites</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
@@ -95,7 +95,7 @@ export default async function DatasetsPage({
           {datasets.items.map((dataset) => {
             const runnableVersions = versionsForProject(versions, dataset.project_id);
             return (
-              <div key={dataset.id} className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+              <div key={dataset.id} className="data-surface overflow-hidden">
                 <div className="border-b border-slate-100 px-6 py-6 sm:px-8 sm:py-7">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>

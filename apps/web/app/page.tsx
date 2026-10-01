@@ -1,12 +1,15 @@
 import Link from "next/link";
 
+import { ApplicationFlow } from "@/components/application-flow";
 import { ApiUnavailable } from "@/components/api-unavailable";
-import { ProductStatus } from "@/components/product-status";
 import {
   comparePairedVersions,
+  listEvaluations,
   listProjects,
+  listTraces,
   listVersions
 } from "@/lib/api";
+import { firstSupportedDifference, observedApplicationFlow } from "@/lib/evaluation-explanations";
 import { formatPercent } from "@/lib/format";
 import {
   deriveReleaseState,
@@ -15,8 +18,7 @@ import {
   summarizeConfigChanges
 } from "@/lib/product-intelligence";
 import { evaluatorInfo, numeric, type RegressionCase } from "@/lib/product-intelligence";
-import type { CaseComparison, PairedVersionComparison } from "@/lib/types";
-import { seedDemoAction } from "./actions";
+import type { CaseComparison, EvaluationResult, PairedVersionComparison, Trace } from "@/lib/types";
 
 function decisionStyle(label: string) {
   if (label === "REGRESSION") return "border-red-200 bg-red-50 text-red-950";
@@ -52,24 +54,32 @@ export default async function HomePage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const query = await searchParams;
-  const demoError = typeof query.demo_error === "string" ? decodeURIComponent(query.demo_error) : "";
-  const demoSeedEnabled = process.env.AGENTGUARD_DEMO_SEED_ENABLED !== "false";
+  await searchParams;
 
   let projects;
   let versions;
   let comparison: PairedVersionComparison | null = null;
+  let latestCandidateTrace: Trace | null = null;
+  let latestCandidateEvaluations: EvaluationResult[] = [];
   try {
     projects = await listProjects();
     versions = (await Promise.all(projects.map((project) => listVersions(project.id)))).flat();
     const defaultPair = findDefaultComparisonPair(projects, versions);
     if (defaultPair) {
-      comparison = await comparePairedVersions(defaultPair.baseline.id, defaultPair.candidate.id);
+      const [paired, candidateTraces, candidateEvaluations] = await Promise.all([
+        comparePairedVersions(defaultPair.baseline.id, defaultPair.candidate.id),
+        listTraces({ versionId: defaultPair.candidate.id, limit: 25 }),
+        listEvaluations({ versionId: defaultPair.candidate.id, limit: 200 })
+      ]);
+      comparison = paired;
+      latestCandidateTrace = candidateTraces.items[0] ?? null;
+      latestCandidateEvaluations = latestCandidateTrace
+        ? candidateEvaluations.items.filter((item) => item.trace_id === latestCandidateTrace?.id)
+        : [];
     }
   } catch (error) {
     return (
-      <div className="space-y-6">
-        <ProductStatus />
+      <div className="py-8">
         <ApiUnavailable detail={error instanceof Error ? error.message : String(error)} />
       </div>
     );
@@ -87,8 +97,6 @@ export default async function HomePage({
   const releaseState = deriveReleaseState(buckets, comparison);
   const label = overallLabel(comparison, releaseState);
   const changes = pair ? summarizeConfigChanges(pair.baseline, pair.candidate) : [];
-  const regressionCount = buckets.regressed.length;
-  const improvementCount = buckets.improved.length;
   const missingCount = buckets.notComparable.length;
   const nextAction = !pair
     ? { label: "Set up a project", href: "/projects" }
@@ -104,12 +112,13 @@ export default async function HomePage({
           }
         : { label: "Run a test suite", href: "/datasets" };
   return (
-    <div className="space-y-6">
-      <section className={`rounded-2xl border p-7 shadow-panel ${decisionStyle(label)}`}>
+    <div className="space-y-10">
+      <section className={`overflow-hidden rounded-[1.75rem] border shadow-[0_22px_65px_rgba(15,23,42,0.08)] ${decisionStyle(label)}`}>
+        <div className="p-7 sm:p-9">
           <div className="text-xs font-medium uppercase tracking-[0.22em] opacity-70">
-            Latest candidate signal
+            Current release signal
           </div>
-          <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
+          <div className="mt-4 flex flex-wrap items-start justify-between gap-6">
             <div>
               <h1 className="text-3xl font-semibold tracking-normal">{releaseState.title}</h1>
               {pair ? (
@@ -127,11 +136,7 @@ export default async function HomePage({
                 {releaseState.explanation}
               </p>
             </div>
-            {pair ? (
-              <div className="rounded-full bg-white/70 px-4 py-2 text-sm font-medium shadow-sm">
-                {regressionCount} {regressionCount === 1 ? "regression" : "regressions"} · {improvementCount} {improvementCount === 1 ? "improvement" : "improvements"}
-              </div>
-            ) : null}
+            {pair ? <VersionRoute baseline={pair.baseline.version} candidate={pair.candidate.version} /> : null}
           </div>
 
           <div className="mt-6 flex flex-col divide-y divide-current/10 border-y border-current/10 py-2 md:flex-row md:divide-x md:divide-y-0">
@@ -152,7 +157,7 @@ export default async function HomePage({
             />
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-3">
+          <div className="mt-7 flex flex-wrap gap-3">
             <Link
               href={nextAction.href}
               className="rounded-full bg-ink-950 px-5 py-2.5 text-sm font-medium text-white hover:bg-ink-800"
@@ -165,41 +170,55 @@ export default async function HomePage({
             >
               SDK quickstart
             </Link>
-            {demoSeedEnabled ? (
-              <form action={seedDemoAction}>
-                <button className="rounded-full border border-slate-300 bg-white/75 px-5 py-2.5 text-sm font-medium text-ink-950 hover:border-cyan-400">
-                  Load demo data
-                </button>
-              </form>
-            ) : null}
           </div>
-          {demoError ? (
-            <div className="mt-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-              {demoError}
-            </div>
-          ) : null}
+        </div>
       </section>
 
-      {pair ? <section className="border-y border-slate-200 py-5">
-          <div className="text-xs font-medium uppercase tracking-[0.2em] text-cyan-700">
-            Observed changes
+      {latestCandidateTrace ? (
+        <section className="py-2">
+          <ApplicationFlow
+            stages={observedApplicationFlow(latestCandidateTrace)}
+            highlightedStage={firstSupportedDifference(latestCandidateEvaluations)}
+            title={`How ${pair?.candidate.version ?? "the current version"} handled its latest recorded run`}
+          />
+          <p className="mt-5 max-w-3xl border-l-2 border-cyan-500 pl-4 text-sm leading-6 text-slate-600">
+            AgentGuard reconstructed this flow from recorded retrieval, tool, workflow, and model steps. A highlighted stage is where stored checks first support a problem; it does not claim that stage caused the result.
+          </p>
+        </section>
+      ) : null}
+
+      {pair && changes.length ? (
+        <section className="border-t border-slate-200 pt-7">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <div className="text-xs font-medium uppercase tracking-[0.2em] text-cyan-700">Observed application changes</div>
+              <h2 className="mt-2 text-xl font-semibold text-ink-950">What changed between the versions</h2>
+            </div>
+            <Link href={`/releases?baseline_version_id=${pair.baseline.id}&candidate_version_id=${pair.candidate.id}`} className="text-sm font-medium text-cyan-800 hover:underline">See the full comparison</Link>
           </div>
-          <div className="mt-3 flex flex-wrap gap-3">
-            {changes.slice(0, 3).map((change) => (
-              <div key={`${change.label}:${change.field ?? ""}`} className="min-w-56 border-l-2 border-cyan-500 py-1 pl-3">
+          <div className="mt-5 divide-y divide-slate-200 border-y border-slate-200">
+            {changes.slice(0, 4).map((change) => (
+              <div key={`${change.label}:${change.field ?? ""}`} className="grid gap-2 py-4 sm:grid-cols-[12rem_1fr_auto_1fr] sm:items-center">
                 <div className="text-sm font-medium text-ink-950">{change.label}</div>
-                <div className="mt-1 text-xs text-slate-600">
-                  {change.evidence === "observed"
-                    ? `${change.before} → ${change.after}`
-                    : "No stored configuration difference yet."}
-                </div>
+                <div className="text-sm text-slate-600">{change.before}</div>
+                <div className="hidden text-slate-300 sm:block">→</div>
+                <div className="text-sm font-medium text-ink-950">{change.after}</div>
               </div>
             ))}
           </div>
-          <p className="mt-3 text-xs leading-5 text-slate-500">
-            These settings changed alongside the result; they are not proof of causality.
-          </p>
-      </section> : null}
+          <p className="mt-3 text-xs leading-5 text-slate-500">These settings changed alongside the evaluation result. AgentGuard treats them as investigation context, not proof of causality.</p>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function VersionRoute({ baseline, candidate }: { baseline: string; candidate: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-full bg-white/65 px-4 py-2 text-sm shadow-sm ring-1 ring-black/5">
+      <span className="font-medium">{baseline}</span>
+      <span className="text-slate-400">→</span>
+      <span className="font-semibold">{candidate}</span>
     </div>
   );
 }

@@ -11,6 +11,13 @@ function dateFilter(trace: Trace, from?: string, to?: string): boolean {
   return true;
 }
 
+function searchableText(trace: Trace): string {
+  const input = trace.input && typeof trace.input === "object" && !Array.isArray(trace.input)
+    ? trace.input.question
+    : null;
+  return `${trace.name} ${typeof input === "string" ? input : ""}`.toLowerCase();
+}
+
 export default async function TracesPage({
   searchParams
 }: {
@@ -22,6 +29,7 @@ export default async function TracesPage({
   const status = typeof query.status === "string" ? (query.status as RunStatus | "") : "";
   const from = typeof query.from === "string" ? query.from : "";
   const to = typeof query.to === "string" ? query.to : "";
+  const search = typeof query.q === "string" ? query.q.trim() : "";
 
   let projects;
   let versions;
@@ -51,12 +59,14 @@ export default async function TracesPage({
   const selectedProjectVersions = projectId
     ? versions.filter((version) => version.project_id === projectId)
     : versions;
-  const visibleTraces = traces.items.filter((trace) => dateFilter(trace, from, to));
-  const hasFilters = Boolean(projectId || versionId || status || from || to);
+  const visibleTraces = traces.items.filter(
+    (trace) => dateFilter(trace, from, to) && (!search || searchableText(trace).includes(search.toLowerCase()))
+  );
+  const hasFilters = Boolean(projectId || versionId || status || from || to || search);
 
   return (
     <div className="space-y-6">
-      <section className="border-b border-slate-200 pb-6 pt-2">
+      <section className="page-intro">
         <div className="text-xs font-semibold uppercase tracking-wide text-cyan-700">Investigate</div>
         <h1 className="mt-2 text-2xl font-semibold text-ink-950">Runs</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
@@ -64,7 +74,17 @@ export default async function TracesPage({
         </p>
       </section>
 
-      <form className="flex flex-wrap items-center gap-2 border-y border-slate-200 bg-white py-3">
+      <form className="tool-panel flex flex-wrap items-center gap-2 p-3">
+        <label className="min-w-52 flex-1">
+          <span className="sr-only">Search runs</span>
+          <input
+            name="q"
+            type="search"
+            defaultValue={search}
+            placeholder="Search runs..."
+            className="w-full rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-cyan-500 focus:bg-white"
+          />
+        </label>
         <label>
           <span className="sr-only">Project</span>
           <select
@@ -126,10 +146,16 @@ export default async function TracesPage({
               className="min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm text-ink-950"
             />
         </label>
-        <button className="rounded-lg bg-ink-900 px-4 py-2 text-sm font-medium text-white">Apply</button>
-        {hasFilters ? <a href="/traces" className="px-2 text-sm text-slate-600 hover:underline">Clear</a> : null}
-        <span className="ml-auto text-sm text-slate-500">{visibleTraces.length} runs</span>
+        <button className="rounded-lg bg-ink-900 px-4 py-2 text-sm font-medium text-white">Filter</button>
+        <span className="ml-auto px-2 text-sm text-slate-500">{visibleTraces.length} runs</span>
       </form>
+
+      {hasFilters ? (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+          <span>Showing a filtered view.</span>
+          <a href="/traces" className="font-medium text-cyan-800 hover:underline">Clear every filter</a>
+        </div>
+      ) : null}
 
       {visibleTraces.length === 0 ? (
         <EmptyState

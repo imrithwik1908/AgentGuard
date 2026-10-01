@@ -9,8 +9,12 @@
 
 body {
   margin: 0;
-  background: linear-gradient(180deg, #ffffff 0%, #f6f8f8 52%, #eef5f4 100%);
+  background:
+    linear-gradient(90deg, rgba(8, 145, 178, 0.035) 1px, transparent 1px),
+    linear-gradient(180deg, #ffffff 0%, #f7f9f9 52%, #f1f6f5 100%);
+  background-size: 72px 100%, 100% 100%;
   color: #171a1f;
+  min-height: 100vh;
 }
 
 * {
@@ -55,6 +59,25 @@ textarea {
     0 1px 1px rgba(16, 18, 20, 0.05),
     0 14px 34px rgba(16, 18, 20, 0.055);
   backdrop-filter: blur(18px);
+}
+
+.page-intro {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+  padding: 0.5rem 0 1.75rem;
+}
+
+.tool-panel {
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 0.875rem;
+  box-shadow: 0 10px 35px rgba(15, 23, 42, 0.045);
+}
+
+.data-surface {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 1rem;
+  box-shadow: 0 16px 45px rgba(15, 23, 42, 0.045);
 }
 
 .soft-divider {

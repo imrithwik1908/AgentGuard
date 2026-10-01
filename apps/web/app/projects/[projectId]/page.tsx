@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import { ApiUnavailable } from "@/components/api-unavailable";
 import { EmptyState } from "@/components/empty-state";
-import { MetricCard } from "@/components/metric-card";
 import { StatusBadge } from "@/components/status-badge";
 import { TraceTable } from "@/components/trace-table";
 import { getProject, listTraces, listVersions } from "@/lib/api";
@@ -43,7 +42,7 @@ export default async function ProjectDetailPage({
 
   return (
     <div className="space-y-6">
-      <div className="rounded border border-slate-200 bg-white p-5 shadow-panel">
+      <div className="page-intro">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="text-sm text-slate-500">
@@ -67,14 +66,14 @@ export default async function ProjectDetailPage({
         </div>
       </div>
 
-      <section className="grid gap-3 md:grid-cols-4">
-        <MetricCard label="Versions" value={versions.length} detail="Registered application builds" tone="focus" />
-        <MetricCard label="Recent runs" value={traces.total} detail="Stored executions" />
-        <MetricCard label="OK" value={okCount} detail="Healthy recent runs" tone="ok" />
-        <MetricCard label="Errors" value={errorCount} detail="Runs requiring inspection" tone="error" />
+      <section className="flex flex-wrap gap-x-10 gap-y-4 border-y border-slate-200 py-5">
+        <ProjectStat label="Versions" value={versions.length} />
+        <ProjectStat label="Recent runs" value={traces.total} />
+        <ProjectStat label="Completed" value={okCount} />
+        <ProjectStat label="Runtime errors" value={errorCount} />
       </section>
 
-      <section className="rounded border border-cyan-200 bg-cyan-50/70 p-4 shadow-panel">
+      <section className="border-l-2 border-cyan-500 bg-cyan-50/40 px-5 py-4">
         <h2 className="text-sm font-semibold text-ink-950">How this project gets telemetry</h2>
         <div className="mt-3 grid gap-3 text-sm text-slate-700 lg:grid-cols-3">
           <div>1. Register a version such as <span className="font-mono">v1</span>.</div>
@@ -83,7 +82,7 @@ export default async function ProjectDetailPage({
         </div>
       </section>
 
-      <section className="rounded border border-slate-200 bg-white p-4 shadow-panel">
+      <section className="tool-panel p-5">
         <h2 className="text-sm font-semibold text-ink-950">Register application version</h2>
         {versionError ? (
           <div className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -126,7 +125,7 @@ export default async function ProjectDetailPage({
         </form>
       </section>
 
-      <section className="rounded border border-slate-200 bg-white shadow-panel">
+      <section className="data-surface overflow-hidden">
         <div className="border-b border-slate-200 px-4 py-3">
           <h2 className="text-sm font-semibold text-ink-950">Application versions</h2>
         </div>
@@ -166,6 +165,15 @@ export default async function ProjectDetailPage({
           <TraceTable traces={traces.items} projects={[project]} versions={versions} />
         )}
       </section>
+    </div>
+  );
+}
+
+function ProjectStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <div className="text-2xl font-semibold text-ink-950">{value}</div>
+      <div className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
     </div>
   );
 }

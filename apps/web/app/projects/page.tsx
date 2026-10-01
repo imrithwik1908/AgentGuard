@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import { ApiUnavailable } from "@/components/api-unavailable";
 import { EmptyState } from "@/components/empty-state";
-import { MetricCard } from "@/components/metric-card";
 import { listProjects } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
 
@@ -24,7 +23,7 @@ export default async function ProjectsPage({
 
   return (
     <div className="space-y-6">
-      <div className="rounded border border-slate-200 bg-white p-5 shadow-panel">
+      <div className="page-intro">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="text-xs font-medium uppercase tracking-wide text-cyan-700">Workspace setup</div>
@@ -44,12 +43,6 @@ export default async function ProjectsPage({
         </div>
       </div>
 
-      <section className="grid gap-3 md:grid-cols-3">
-        <MetricCard label="Configured projects" value={projects.length} detail="Applications AgentGuard can evaluate" tone="focus" />
-        <MetricCard label="First step" value="Project" detail="Create the app boundary before registering versions" />
-        <MetricCard label="Next step" value="Version" detail="Open a project to register the build you are tracing" />
-      </section>
-
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold text-ink-950">Project registry</h2>
@@ -57,7 +50,7 @@ export default async function ProjectsPage({
         </div>
       </div>
 
-      <section className="rounded border border-slate-200 bg-white p-4 shadow-panel">
+      <section className="tool-panel p-5">
         <h3 className="text-sm font-semibold text-ink-950">Create project</h3>
         {projectError ? (
           <div className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -80,7 +73,7 @@ export default async function ProjectsPage({
           />
           <input
             name="description"
-            placeholder="Local deterministic demo"
+            placeholder="Meeting notes assistant"
             className="rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-ink-700"
           />
           <button className="rounded bg-ink-900 px-4 py-2 text-sm font-medium text-white hover:bg-ink-800">
@@ -92,15 +85,15 @@ export default async function ProjectsPage({
       {projects.length === 0 ? (
         <EmptyState
           title="No projects yet"
-          description="Create a project here, open it, register a version, then run the deterministic demo agent to create your first evaluated run."
+          description="Create a project, register its first version, then connect the SDK to record and evaluate real application runs."
         />
       ) : (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="data-surface divide-y divide-slate-100 px-5 sm:px-7">
           {projects.map((project) => (
             <Link
               key={project.id}
               href={`/projects/${project.id}`}
-              className="rounded border border-slate-200 bg-white p-4 shadow-panel transition hover:-translate-y-0.5 hover:border-slate-300"
+              className="grid gap-3 py-5 transition-colors hover:bg-cyan-50/30 sm:grid-cols-[1fr_auto] sm:items-center"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -108,10 +101,10 @@ export default async function ProjectsPage({
                   <p className="mt-1 text-xs text-slate-500">{project.slug}</p>
                 </div>
               </div>
-              <p className="mt-3 min-h-10 text-sm text-slate-600">
+              <p className="mt-2 text-sm text-slate-600">
                 {project.description ?? "No description"}
               </p>
-              <div className="mt-4 text-xs text-slate-500">Created {formatDateTime(project.created_at)}</div>
+              <div className="text-xs text-slate-500 sm:text-right">Created {formatDateTime(project.created_at)}<div className="mt-1 font-medium text-cyan-800">Open project →</div></div>
             </Link>
           ))}
         </div>

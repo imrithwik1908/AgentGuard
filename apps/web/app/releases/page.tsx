@@ -47,10 +47,10 @@ function versionLabel(version: ApplicationVersion, projects: Project[]) {
 }
 
 function decisionClasses(tone: "ok" | "error" | "warning" | "neutral") {
-  if (tone === "ok") return "border-emerald-200 bg-emerald-50 text-emerald-950";
-  if (tone === "error") return "border-red-200 bg-red-50 text-red-950";
-  if (tone === "warning") return "border-amber-200 bg-amber-50 text-amber-950";
-  return "border-slate-200 bg-slate-50 text-slate-950";
+  if (tone === "ok") return "border-emerald-200 bg-emerald-50/70 text-emerald-950";
+  if (tone === "error") return "border-red-200 bg-red-50/70 text-red-950";
+  if (tone === "warning") return "border-amber-200 bg-amber-50/70 text-amber-950";
+  return "border-slate-200 bg-slate-50/70 text-slate-950";
 }
 
 export default async function ReleasesPage({
@@ -129,7 +129,7 @@ export default async function ReleasesPage({
 
   return (
     <div className="space-y-7">
-      <section className={`rounded-2xl border p-6 shadow-panel ${decisionClasses(releaseState.tone)}`}>
+      <section className={`border-y px-1 py-7 sm:px-6 sm:py-9 ${decisionClasses(releaseState.tone)}`}>
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="text-xs font-medium uppercase tracking-[0.22em] opacity-70">
@@ -169,7 +169,7 @@ export default async function ReleasesPage({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200/80 bg-white px-6 py-6 shadow-[0_16px_45px_rgba(15,23,42,0.05)] sm:px-8">
+      <section className="tool-panel px-5 py-5 sm:px-7">
         <div>
           <h2 className="text-lg font-semibold text-ink-950">Compare versions</h2>
           <p className="mt-1 text-sm text-slate-600">
@@ -242,19 +242,6 @@ export default async function ReleasesPage({
               These are observed configuration differences. They may explain a result, but they do not prove what caused it.
             </p>
           </div>
-        </section>
-      ) : null}
-
-      {representativeCase ? (
-        <section className="rounded-2xl bg-white px-6 py-7 shadow-[0_18px_55px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80 sm:px-8">
-          <ApplicationFlow
-            stages={observedApplicationFlow(representativeCase.candidateTrace)}
-            highlightedStage={firstSupportedDifference(representativeCase.failedEvaluations)}
-            title={`How ${pair?.candidate.version ?? "the candidate"} handled a recorded test run`}
-          />
-          <p className="mt-5 max-w-3xl border-l-2 border-cyan-500 pl-4 text-sm leading-6 text-slate-600">
-            This map comes from the steps recorded by the SDK. A highlighted stage is the first place where stored checks support a difference; it is evidence for investigation, not proof of cause.
-          </p>
         </section>
       ) : null}
 

@@ -50,7 +50,7 @@ export default function DocsPage() {
             </p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
-            <div className="text-sm font-semibold text-ink-950">Install the SDK today</div>
+            <div className="text-sm font-semibold text-ink-950">Install the Python SDK</div>
             <code className="mt-3 block rounded-xl bg-slate-950 p-3 text-xs text-slate-100">
               {install}
             </code>

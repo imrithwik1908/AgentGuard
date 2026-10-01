@@ -70,9 +70,8 @@ export function TraceExplorer({
 
   return (
     <div className="space-y-5">
-      <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-panel">
-        <div className="h-1 bg-gradient-to-r from-cyan-500 via-emerald-500 to-red-500" />
-        <div className="p-5">
+      <section className="data-surface overflow-hidden">
+        <div className="p-5 sm:p-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -100,27 +99,18 @@ export function TraceExplorer({
         </div>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-3">
-        <div className="rounded-2xl border border-cyan-200 bg-cyan-50/70 p-4 shadow-panel">
-          <div className="text-xs font-medium uppercase tracking-wide text-cyan-700">Debugging details</div>
-          <p className="mt-2 text-sm leading-6 text-slate-700">
-            This is the technical view for one run. The rows below are internal steps recorded by the SDK.
-          </p>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-panel">
-          <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Root steps</div>
-          <div className="mt-2 text-2xl font-semibold text-ink-950">{rootSpanCount}</div>
-          <p className="mt-1 text-sm text-slate-600">Top-level operations in this run.</p>
-        </div>
-        <div className="rounded-2xl border border-red-200 bg-red-50/70 p-4 shadow-panel">
-          <div className="text-xs font-medium uppercase tracking-wide text-red-700">Error steps</div>
-          <div className="mt-2 text-2xl font-semibold text-red-950">{errorSpanCount}</div>
-          <p className="mt-1 text-sm text-red-800">Steps that captured an exception or failure status.</p>
+      <section className="flex flex-wrap items-center gap-x-8 gap-y-3 border-y border-slate-200 px-1 py-4 text-sm">
+        <p className="max-w-2xl text-slate-600">
+          The timeline below shows the recorded operations inside this run. Step color describes execution health, not answer correctness.
+        </p>
+        <div className="ml-auto flex items-center gap-5 text-slate-600">
+          <span><strong className="text-ink-950">{rootSpanCount}</strong> root steps</span>
+          <span><strong className={errorSpanCount ? "text-red-700" : "text-ink-950"}>{errorSpanCount}</strong> execution errors</span>
         </div>
       </section>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
-        <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-panel">
+        <section className="data-surface overflow-hidden">
           <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
             <div className="grid grid-cols-[minmax(280px,0.9fr)_minmax(240px,1.1fr)] text-xs font-medium uppercase tracking-wide text-slate-500">
               <div>Step hierarchy</div>
@@ -190,7 +180,7 @@ export function TraceExplorer({
           )}
         </section>
 
-        <aside className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-panel">
+        <aside className="data-surface overflow-hidden">
           <div className="border-b border-slate-200 px-4 py-3">
             <h2 className="text-sm font-semibold text-ink-950">Step details</h2>
           </div>
@@ -215,10 +205,10 @@ function SpanDetails({ span, parent }: { span: Span; parent: Span | null }) {
     <div className="space-y-5 p-4">
       <section
         className={clsx(
-          "rounded-2xl border p-4",
+          "border-l-2 p-4",
           span.status === "ERROR"
-            ? "border-red-200 bg-red-50 text-red-950"
-            : "border-emerald-200 bg-emerald-50 text-emerald-950"
+            ? "border-red-500 bg-red-50/70 text-red-950"
+            : "border-emerald-500 bg-emerald-50/70 text-emerald-950"
         )}
       >
         <div className="text-xs font-semibold uppercase tracking-[0.18em] opacity-70">
@@ -229,16 +219,16 @@ function SpanDetails({ span, parent }: { span: Span; parent: Span | null }) {
           <SpanTypeBadge type={span.type} />
         </div>
         <p className="mt-2 text-sm leading-6 opacity-85">{spanStatusMeaning(span)}</p>
-        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
-          <div className="rounded-xl bg-white/70 p-3">
+        <div className="mt-3 grid gap-2 border-t border-current/10 pt-3 text-xs sm:grid-cols-3">
+          <div>
             <div className="font-semibold">{spanTypeMeaning(span.type)}</div>
             <div className="mt-1 opacity-70">What kind of work this step did.</div>
           </div>
-          <div className="rounded-xl bg-white/70 p-3">
+          <div>
             <div className="font-semibold">{formatDuration(span.duration_ms)}</div>
             <div className="mt-1 opacity-70">Time spent in this step.</div>
           </div>
-          <div className="rounded-xl bg-white/70 p-3">
+          <div>
             <div className="font-semibold">
               {[hasInput && "input", hasOutput && "output", hasMetadata && "metadata"]
                 .filter(Boolean)
@@ -265,7 +255,7 @@ function SpanDetails({ span, parent }: { span: Span; parent: Span | null }) {
       </dl>
 
       {evidence.length ? (
-        <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <section className="border-l-2 border-cyan-500 bg-cyan-50/50 p-4">
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             {span.type === "LLM" ? "Generated answer" : span.type === "RETRIEVER" ? "Retrieved sources" : "Recorded action"}
           </div>
@@ -290,10 +280,11 @@ function SpanDetails({ span, parent }: { span: Span; parent: Span | null }) {
         {span.error ? <JsonViewer label="error" value={span.error} defaultOpen /> : null}
       </div>
 
-      <div className="rounded bg-slate-50 p-3">
+      <details className="border-t border-slate-100 pt-3 text-xs text-slate-500">
+        <summary className="cursor-pointer font-medium">Technical step identifier</summary>
         <div className="text-xs uppercase tracking-wide text-slate-500">Step ID</div>
         <div className="mt-1 break-all font-mono text-xs text-slate-700">{span.id}</div>
-      </div>
+      </details>
     </div>
   );
 }

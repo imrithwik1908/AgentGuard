@@ -3,7 +3,7 @@ import Link from "next/link";
 export default function GuidePage() {
   return (
     <div className="space-y-8">
-      <section className="surface rounded-[2rem] p-6">
+      <section className="page-intro">
         <div className="text-xs font-medium uppercase tracking-[0.22em] text-cyan-700">
           Product guide
         </div>
@@ -15,7 +15,7 @@ export default function GuidePage() {
         </p>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
+      <section className="data-surface divide-y divide-slate-100 px-5 sm:px-7">
         <Step
           title="1. Connect the app"
           body="Install the Python SDK and connect it with an API key. AgentGuard records each execution as a run with steps for debugging."
@@ -30,7 +30,7 @@ export default function GuidePage() {
         />
       </section>
 
-      <section className="surface rounded-[2rem] p-6">
+      <section className="tool-panel p-5 sm:p-7">
         <h2 className="text-lg font-semibold text-ink-950">SDK quickstart</h2>
         <pre className="mt-4 rounded-2xl bg-ink-950 p-4 text-xs leading-6 text-slate-100">
 {`from agentguard import AgentGuard
@@ -65,9 +65,9 @@ with client.trace("answer-question", input={"question": question}) as trace:
 
 function Step({ title, body }: { title: string; body: string }) {
   return (
-    <div className="surface rounded-[2rem] p-5">
-      <h2 className="text-lg font-semibold text-ink-950">{title}</h2>
-      <p className="mt-3 text-sm leading-6 text-slate-600">{body}</p>
+    <div className="grid gap-3 py-5 md:grid-cols-[12rem_1fr] md:items-start">
+      <h2 className="text-base font-semibold text-ink-950">{title}</h2>
+      <p className="text-sm leading-6 text-slate-600">{body}</p>
     </div>
   );
 }

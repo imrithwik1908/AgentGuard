@@ -82,16 +82,16 @@ export default async function EvaluationsPage({
     return (
       <div className="mx-auto max-w-4xl space-y-5 py-8">
         <EvaluationJobProgress jobs={jobs} releaseUrl={releaseUrl} />
-        <div className="grid gap-3 border-y border-slate-200 py-5 sm:grid-cols-3">
-          <div>
+        <div className="flex flex-col divide-y divide-slate-200 border-y border-slate-200 sm:flex-row sm:divide-x sm:divide-y-0">
+          <div className="flex-1 py-4 sm:px-4 sm:first:pl-0">
             <div className="text-xs font-semibold text-slate-400">1. RUNS</div>
             <div className="mt-1 text-sm text-slate-700">Match each test case across both versions.</div>
           </div>
-          <div>
+          <div className="flex-1 py-4 sm:px-4">
             <div className="text-xs font-semibold text-slate-400">2. CHECKS</div>
             <div className="mt-1 text-sm text-slate-700">Measure answers, retrieval, tools, and execution.</div>
           </div>
-          <div>
+          <div className="flex-1 py-4 sm:px-4 sm:last:pr-0">
             <div className="text-xs font-semibold text-slate-400">3. DECISION</div>
             <div className="mt-1 text-sm text-slate-700">Open the comparison when the evidence is ready.</div>
           </div>
@@ -102,7 +102,7 @@ export default async function EvaluationsPage({
 
   return (
     <div className="space-y-8">
-      <section className="border-b border-slate-200 pb-6 pt-2">
+      <section className="page-intro">
         <div className="text-xs font-semibold uppercase tracking-wide text-cyan-700">Evaluate</div>
         <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -120,19 +120,21 @@ export default async function EvaluationsPage({
         </div>
       </section>
 
-      <details className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <summary className="cursor-pointer font-medium text-slate-700">Checks AgentGuard can run</summary>
-        <section className="mt-4 grid gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 lg:grid-cols-4">
+      <details className="data-surface px-5 py-4 sm:px-7">
+        <summary className="cursor-pointer font-medium text-slate-700">See the checks available to test suites</summary>
+        <section className="mt-5 divide-y divide-slate-100 border-t border-slate-100">
           {CATEGORIES.map((category) => {
           const active = implemented.filter((item) => item.category === category);
           return (
-            <div key={category} className="bg-white p-4">
-              <div className="text-sm font-semibold text-ink-950">{category}</div>
-              <p className="mt-1 text-xs leading-4 text-slate-500">{categoryDescription(category)}</p>
-              <div className="mt-3 space-y-2">
+            <div key={category} className="grid gap-4 py-5 md:grid-cols-[12rem_1fr]">
+              <div>
+                <div className="text-sm font-semibold text-ink-950">{category}</div>
+                <p className="mt-1 text-xs leading-5 text-slate-500">{categoryDescription(category)}</p>
+              </div>
+              <div className="grid gap-x-8 gap-y-4 lg:grid-cols-2">
                 {active.length > 0 ? (
                   active.map((item, index) => (
-                    <div key={`${item.name}-${index}`} className="border-t border-slate-100 py-2 first:border-0">
+                    <div key={`${item.name}-${index}`}>
                       <div className="flex items-center justify-between gap-2">
                         <div className="text-sm font-medium text-ink-950">{item.name}</div>
                         <span className="shrink-0 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
@@ -166,7 +168,7 @@ export default async function EvaluationsPage({
         </div>
 
         {recentEvaluations.length > 0 ? (
-          <div className="grid gap-3">
+          <div className="data-surface divide-y divide-slate-100 overflow-hidden">
               {recentEvaluations.map((evaluation) => {
                 const info = evaluatorInfo(evaluation.evaluator_name);
                 const project = projectById.get(evaluation.project_id);
@@ -176,16 +178,10 @@ export default async function EvaluationsPage({
                 return (
                   <div
                     key={evaluation.id}
-                    className={`overflow-hidden rounded-2xl border bg-white shadow-panel ${
-                      evaluation.passed ? "border-emerald-200" : "border-red-200"
-                    }`}
+                    className="relative bg-white px-5 py-5 sm:px-7"
                   >
-                    <div
-                      className={`h-1 ${
-                        evaluation.passed ? "bg-emerald-500" : "bg-red-500"
-                      }`}
-                    />
-                    <div className="grid gap-4 p-4 lg:grid-cols-[1fr_auto]">
+                    <div className={`absolute inset-y-5 left-0 w-0.5 ${evaluation.passed ? "bg-emerald-500" : "bg-red-500"}`} />
+                    <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <EvaluationStatusBadge status={evaluation.status} />
@@ -247,13 +243,13 @@ export default async function EvaluationsPage({
                 );
               })}
             {evaluations.items.length > recentEvaluations.length ? (
-              <p className="pt-2 text-center text-xs text-slate-500">
+              <p className="border-t border-slate-100 px-5 py-4 text-center text-xs text-slate-500">
                 Showing the 25 most recent results.
               </p>
             ) : null}
           </div>
         ) : (
-          <div className="surface rounded-2xl p-5 text-sm text-slate-600">
+          <div className="data-surface p-5 text-sm text-slate-600">
             No check results yet. Create a test suite and run cases against a version.
           </div>
         )}

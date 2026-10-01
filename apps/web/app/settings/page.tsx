@@ -30,7 +30,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="space-y-8">
-      <section className="surface rounded-[2rem] p-6">
+      <section className="page-intro">
         <div className="text-xs font-medium uppercase tracking-[0.22em] text-cyan-700">
           Connect your application
         </div>
@@ -56,7 +56,7 @@ export default async function SettingsPage() {
         </div>
       </section>
 
-      <section className="flex flex-wrap items-center justify-between gap-4 border-y border-slate-200 py-4">
+      <section className="flex flex-wrap items-center justify-between gap-4 border-y border-slate-200 bg-white/55 px-5 py-4">
         <div>
           <div className="text-sm font-semibold text-ink-950">Evaluation engine</div>
           <p className="mt-1 text-sm text-slate-600">
@@ -72,7 +72,7 @@ export default async function SettingsPage() {
 
       <ApiKeyCreator workspaces={workspaces} apiKeys={apiKeys} />
 
-      <section className="grid gap-5 lg:grid-cols-3">
+      <section className="data-surface divide-y divide-slate-100 px-6 sm:px-8">
         <Panel title="Workspaces">
           {workspaces.map((workspace) => (
             <Row
@@ -107,9 +107,9 @@ export default async function SettingsPage() {
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="surface rounded-[2rem] p-5">
+    <div className="grid gap-4 py-6 md:grid-cols-[13rem_1fr]">
       <h2 className="text-sm font-semibold text-ink-950">{title}</h2>
-      <div className="mt-4 space-y-3">
+      <div className="divide-y divide-slate-100">
         {children || <div className="text-sm text-slate-500">Nothing configured yet.</div>}
       </div>
     </div>
@@ -118,7 +118,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 
 function Row({ title, meta }: { title: string; meta: string }) {
   return (
-    <div className="rounded-2xl bg-slate-50/90 p-3">
+    <div className="py-3 first:pt-0 last:pb-0">
       <div className="font-medium text-ink-950">{title}</div>
       <div className="mt-1 text-xs text-slate-500">{meta}</div>
     </div>

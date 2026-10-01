@@ -26,25 +26,25 @@ export function ApiKeyCreator({
   }
 
   return (
-    <section className="surface overflow-hidden rounded-[2rem]">
-      <div className="grid gap-0 lg:grid-cols-[0.9fr_1.1fr]">
-        <div className="border-b border-slate-200/80 p-6 lg:border-b-0 lg:border-r">
+    <section className="tool-panel overflow-hidden">
+      <div>
+        <div className="border-b border-slate-200/80 p-5 sm:px-7">
           <div className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-700">
             SDK access
           </div>
-          <h2 className="mt-3 text-2xl font-semibold text-ink-950">Create an API key</h2>
+          <h2 className="mt-2 text-xl font-semibold text-ink-950">Create an API key</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
             Use this key from your IDE, notebook, server, or CI job so the AgentGuard SDK can
             submit runs for this workspace.
           </p>
         </div>
 
-        <div className="p-6">
+        <div className="p-5 sm:px-7">
           <form action={formAction} className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
             <label className="block">
               <span className="text-xs font-medium text-slate-600">Workspace</span>
               <select
-                className="mt-1 w-full rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 text-sm text-ink-950 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
+                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-ink-950 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
                 name="workspace_id"
                 required
               >
@@ -58,14 +58,14 @@ export function ApiKeyCreator({
             <label className="block">
               <span className="text-xs font-medium text-slate-600">Key name</span>
               <input
-                className="mt-1 w-full rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 text-sm text-ink-950 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
+                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-ink-950 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
                 name="name"
                 placeholder="Local IDE, staging app, CI runner"
                 required
               />
             </label>
             <button
-              className="rounded-2xl bg-ink-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-lg bg-ink-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
               disabled={pending || workspaces.length === 0}
             >
               {pending ? "Creating..." : "Create key"}
@@ -74,7 +74,7 @@ export function ApiKeyCreator({
 
           {state.status !== "idle" ? (
             <div
-              className={`mt-5 rounded-2xl border p-4 text-sm ${
+              className={`mt-5 rounded-lg border p-4 text-sm ${
                 state.status === "created"
                   ? "border-emerald-200 bg-emerald-50 text-emerald-950"
                   : "border-red-200 bg-red-50 text-red-950"
@@ -85,13 +85,13 @@ export function ApiKeyCreator({
                 <div className="mt-3 flex flex-col gap-2 md:flex-row">
                   <input
                     ref={keyRef}
-                    className="min-w-0 flex-1 rounded-xl border border-emerald-200 bg-white px-3 py-2 font-mono text-xs text-ink-950"
+                    className="min-w-0 flex-1 rounded-lg border border-emerald-200 bg-white px-3 py-2 font-mono text-xs text-ink-950"
                     readOnly
                     value={state.apiKey}
                     onFocus={() => keyRef.current?.select()}
                   />
                   <button
-                    className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-800"
+                    className="rounded-lg bg-emerald-700 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-800"
                     type="button"
                     onClick={copyKey}
                   >
@@ -109,7 +109,7 @@ export function ApiKeyCreator({
                 {apiKeys.length} total
               </span>
             </div>
-            <div className="divide-y divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-white/80">
+            <div className="divide-y divide-slate-100 border-t border-slate-200">
               {apiKeys.length === 0 ? (
                 <div className="p-4 text-sm text-slate-500">
                   No SDK keys yet. Create one when you are ready to connect an application.

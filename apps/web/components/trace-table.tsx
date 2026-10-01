@@ -37,7 +37,7 @@ export function TraceTable({
   }
 
   return (
-    <div className="overflow-hidden border-y border-slate-200 bg-white">
+    <div className="data-surface overflow-hidden">
       <div className="hidden grid-cols-[minmax(0,1.8fr)_minmax(9rem,0.7fr)_minmax(8rem,0.6fr)_minmax(8rem,0.6fr)_auto] gap-4 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-500 md:grid">
         <span>Scenario</span><span>Version</span><span>Execution</span><span>Behavior</span><span>Time</span>
       </div>
@@ -47,7 +47,7 @@ export function TraceTable({
             const version = versionById.get(trace.application_version_id);
             const failedEvaluations = failedEvaluationsByTrace.get(trace.id) ?? 0;
             return (
-              <div key={trace.id} className="grid gap-3 px-4 py-4 transition hover:bg-slate-50 md:grid-cols-[minmax(0,1.8fr)_minmax(9rem,0.7fr)_minmax(8rem,0.6fr)_minmax(8rem,0.6fr)_auto] md:items-center md:gap-4">
+              <div key={trace.id} className="grid gap-3 px-5 py-4 transition-colors hover:bg-cyan-50/30 md:grid-cols-[minmax(0,1.8fr)_minmax(9rem,0.7fr)_minmax(8rem,0.6fr)_minmax(8rem,0.6fr)_auto] md:items-center md:gap-4">
                 <div className="min-w-0">
                   <Link className="font-medium text-ink-950 hover:underline" href={`/traces/${trace.id}`}>
                     {runTitle(trace)}

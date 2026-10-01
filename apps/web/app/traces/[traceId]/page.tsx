@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ApiUnavailable } from "@/components/api-unavailable";
+import { ApplicationFlow } from "@/components/application-flow";
 import { EvaluationStatusBadge } from "@/components/evaluation-status-badge";
 import { TraceExplorer } from "@/components/trace-explorer";
 import { formatDateTime, formatScore } from "@/lib/format";
@@ -8,6 +9,8 @@ import { ApiRequestError, getProject, getTrace, listEvaluations, listVersions } 
 import {
   explainEvaluation,
   evaluationReliability,
+  firstSupportedDifference,
+  observedApplicationFlow,
   retrievalIds,
   toolNames,
   traceAnswer
@@ -171,6 +174,17 @@ export default async function TraceDetailPage({
         </div>
       </section>
 
+      <section className="py-3">
+        <ApplicationFlow
+          stages={observedApplicationFlow(trace)}
+          highlightedStage={firstSupportedDifference(failedChecks)}
+          title="How this run moved through the application"
+        />
+        <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600">
+          The map reflects steps recorded by the SDK. A highlighted stage is where a stored check first supports a problem; execution logs and raw payloads remain available below.
+        </p>
+      </section>
+
       <section className="border-b border-slate-200 pb-5">
         <div>
             <div className="text-xs font-medium uppercase tracking-wide text-cyan-700">Checks</div>
@@ -245,7 +259,7 @@ export default async function TraceDetailPage({
         )}
       </section>
 
-      <details className="rounded-xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
+      <details className="tool-panel p-4 text-sm">
         <summary className="cursor-pointer font-medium text-slate-700">Run additional execution checks</summary>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
           <p className="max-w-2xl text-sm text-slate-600">Checks completion, step errors, latency, and whether enough debugging evidence was recorded. It does not judge answer correctness.</p>
@@ -255,7 +269,7 @@ export default async function TraceDetailPage({
         </div>
       </details>
 
-      <details className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <details className="tool-panel p-4">
         <summary className="cursor-pointer text-sm font-semibold text-ink-950">
           View execution details
         </summary>
