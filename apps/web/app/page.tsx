@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { ApplicationFlow } from "@/components/application-flow";
+import { ApplicationArchitecture } from "@/components/application-architecture";
 import { ApiUnavailable } from "@/components/api-unavailable";
 import {
   comparePairedVersions,
@@ -9,7 +9,11 @@ import {
   listTraces,
   listVersions
 } from "@/lib/api";
-import { firstSupportedDifference, observedApplicationFlow } from "@/lib/evaluation-explanations";
+import {
+  architectureLayerForDifference,
+  firstSupportedDifference,
+  observedApplicationArchitecture
+} from "@/lib/evaluation-explanations";
 import { formatPercent } from "@/lib/format";
 import {
   deriveReleaseState,
@@ -60,6 +64,7 @@ export default async function HomePage({
   let versions;
   let comparison: PairedVersionComparison | null = null;
   let latestCandidateTrace: Trace | null = null;
+  let candidateArchitectureTraces: Trace[] = [];
   let latestCandidateEvaluations: EvaluationResult[] = [];
   try {
     projects = await listProjects();
@@ -73,6 +78,7 @@ export default async function HomePage({
       ]);
       comparison = paired;
       latestCandidateTrace = candidateTraces.items[0] ?? null;
+      candidateArchitectureTraces = candidateTraces.items;
       latestCandidateEvaluations = latestCandidateTrace
         ? candidateEvaluations.items.filter((item) => item.trace_id === latestCandidateTrace?.id)
         : [];
@@ -176,13 +182,13 @@ export default async function HomePage({
 
       {latestCandidateTrace ? (
         <section className="py-2">
-          <ApplicationFlow
-            stages={observedApplicationFlow(latestCandidateTrace)}
-            highlightedStage={firstSupportedDifference(latestCandidateEvaluations)}
-            title={`How ${pair?.candidate.version ?? "the current version"} handled its latest recorded run`}
+          <ApplicationArchitecture
+            architecture={observedApplicationArchitecture(candidateArchitectureTraces)}
+            highlightedLayer={architectureLayerForDifference(firstSupportedDifference(latestCandidateEvaluations))}
+            title={`${pair?.candidate.version ?? "Current version"} system components observed by AgentGuard`}
           />
           <p className="mt-5 max-w-3xl border-l-2 border-cyan-500 pl-4 text-sm leading-6 text-slate-600">
-            AgentGuard reconstructed this flow from recorded retrieval, tool, workflow, and model steps. A highlighted stage is where stored checks first support a problem; it does not claim that stage caused the result.
+            This component diagram is reconstructed from real SDK spans across recent runs. A highlighted layer is where stored checks first support a difference; it is investigation evidence, not proof that the component caused the outcome.
           </p>
         </section>
       ) : null}

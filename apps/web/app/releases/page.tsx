@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { ApiUnavailable } from "@/components/api-unavailable";
-import { ApplicationFlow } from "@/components/application-flow";
+import { ApplicationArchitecture } from "@/components/application-architecture";
 import { EvaluationStatusBadge } from "@/components/evaluation-status-badge";
 import {
   comparePairedVersions,
@@ -15,8 +15,9 @@ import { formatPercent, formatScore } from "@/lib/format";
 import {
   explainEvaluation,
   evaluationReliability,
+  architectureLayerForDifference,
   firstSupportedDifference,
-  observedApplicationFlow,
+  observedApplicationArchitecture,
   observedRuntimeChanges,
   retrievalIds,
   toolNames,
@@ -648,15 +649,15 @@ function CaseList({
           </div>
 
           <div className="mt-6">
-            <ApplicationFlow
-              stages={observedApplicationFlow(item.candidateTrace)}
-              highlightedStage={firstSupportedDifference(item.failedEvaluations)}
-              title={`Where the evidence changed in ${candidateLabel}`}
+            <ApplicationArchitecture
+              architecture={observedApplicationArchitecture(item.candidateTrace ? [item.candidateTrace] : [])}
+              highlightedLayer={architectureLayerForDifference(firstSupportedDifference(item.failedEvaluations))}
+              title={`Where AgentGuard first found supporting evidence in ${candidateLabel}`}
             />
           </div>
 
           <div className="mt-5 border-l-2 border-cyan-500 pl-4 text-sm text-slate-700">
-            <div className="text-xs font-semibold uppercase tracking-wide text-cyan-700">What the evidence says</div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-cyan-700">Why AgentGuard classified this result</div>
             <p className="mt-1 leading-6">{caseDifferenceExplanation(item)}</p>
           </div>
 
@@ -840,22 +841,36 @@ function listText(values: string[]): string | null {
 function caseDifferenceExplanation(item: RegressionCase): string {
   const rows = pairedEvaluatorRows(item);
   const regressions = rows.filter((row) => row.baseline?.passed && row.candidate && !row.candidate.passed);
+  const improvements = rows.filter((row) => row.baseline && !row.baseline.passed && row.candidate?.passed);
   const retrieval = regressions.find((row) => evaluatorInfo(row.name).category === "Retrieval");
   if (retrieval?.candidate) {
     const detail = explainEvaluation(retrieval.candidate);
-    return `The first supported difference is retrieval evidence. ${detail.summary}${detail.missing.length ? ` Missing: ${detail.missing.join(", ")}.` : ""}`;
+    return `AgentGuard classified this as worse because a retrieval check passed in the baseline and failed in the candidate. ${detail.summary}${detail.missing.length ? ` The candidate did not retrieve: ${detail.missing.join(", ")}.` : ""}`;
   }
   const tool = regressions.find((row) => evaluatorInfo(row.name).category === "Agent Behavior");
-  if (tool?.candidate) return `The first supported difference is agent behavior. ${explainEvaluation(tool.candidate).summary}`;
+  if (tool?.candidate) return `AgentGuard classified this as worse because an expected tool or workflow check passed in the baseline and failed in the candidate. ${explainEvaluation(tool.candidate).summary}`;
   const answer = regressions.find((row) => evaluatorInfo(row.name).category === "Answer Quality");
   if (answer?.candidate) {
     const detail = explainEvaluation(answer.candidate);
     const retrievalStable = rows.filter((row) => evaluatorInfo(row.name).category === "Retrieval").every((row) => row.baseline?.passed === row.candidate?.passed);
-    const prefix = retrievalStable ? "Recorded retrieval checks remained equivalent; the generated answer changed." : "The generated answer no longer met the stored requirement.";
-    return `${prefix} ${detail.summary}${detail.missing.length ? ` Missing: ${detail.missing.join(", ")}.` : ""}`;
+    const prefix = retrievalStable
+      ? "AgentGuard classified this as worse because the answer check passed in the baseline and failed in the candidate, while recorded retrieval checks remained equivalent. The first supported divergence is therefore in generation or answer construction, not retrieval."
+      : "AgentGuard classified this as worse because the candidate answer no longer met the stored requirement.";
+    return `${prefix} ${detail.summary}${detail.missing.length ? ` The missing evidence was: ${detail.missing.join(", ")}.` : ""}`;
+  }
+  const improved = improvements[0];
+  if (improved?.candidate) {
+    const info = evaluatorInfo(improved.name);
+    return `AgentGuard classified this as improved because the ${info.name.toLowerCase()} check failed in the baseline and passed in the candidate. ${explainEvaluation(improved.candidate).summary}`;
+  }
+  if (item.scoreDelta > 0) {
+    return `Both versions produced the same pass/fail outcome, but the candidate's stored score increased by ${Math.abs(item.scoreDelta * 100).toFixed(0)} percentage points. AgentGuard treats that measured score movement as an improvement.`;
+  }
+  if (item.scoreDelta < 0) {
+    return `Both versions produced the same pass/fail outcome, but the candidate's stored score decreased by ${Math.abs(item.scoreDelta * 100).toFixed(0)} percentage points. AgentGuard treats that measured score movement as supporting evidence, not a proven cause.`;
   }
   if (item.failureAnalysis?.summary) return String(item.failureAnalysis.summary);
-  return "AgentGuard found a paired score difference. Open the score calculation and both executions for the supporting evidence.";
+  return "The paired evaluations produced equivalent outcomes and scores. Open the evidence comparison only if you need to inspect the underlying answers, sources, tools, or execution steps.";
 }
 
 function traceComparisonHref(traceId: string, role: "baseline" | "candidate", baselineVersionId?: string, candidateVersionId?: string) {

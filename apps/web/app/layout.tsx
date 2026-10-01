@@ -31,7 +31,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   <div className="text-xs text-slate-500">AI reliability control plane</div>
                 </div>
               </Link>
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-5">
+              <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
                 <ProductNavigation />
                 {session ? (
                   <div className="flex items-center gap-3 border-l border-slate-200 pl-4 text-xs">

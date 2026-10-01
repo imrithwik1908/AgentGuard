@@ -14,8 +14,12 @@ const items = [
 
 export function ProductNavigation() {
   const pathname = usePathname();
+  if (pathname.startsWith("/auth")) return null;
   return (
-    <nav aria-label="Primary navigation" className="flex items-center gap-1 overflow-x-auto">
+    <nav
+      aria-label="Primary navigation"
+      className="flex min-w-0 items-center gap-1 overflow-x-auto overflow-y-hidden pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
       {items.map(([label, href]) => {
         const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
         return (
@@ -23,7 +27,7 @@ export function ProductNavigation() {
             key={href}
             href={href}
             aria-current={active ? "page" : undefined}
-            className={`relative shrink-0 px-3 py-2 text-sm font-medium transition-colors after:absolute after:inset-x-3 after:-bottom-[13px] after:h-0.5 after:rounded-full after:transition-colors ${
+            className={`relative shrink-0 px-3 py-2 text-sm font-medium transition-colors after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:transition-colors ${
               active
                 ? "text-ink-950 after:bg-cyan-600"
                 : "text-slate-500 after:bg-transparent hover:text-ink-950"

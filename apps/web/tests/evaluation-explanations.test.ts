@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   explainEvaluation,
   firstSupportedDifference,
+  observedApplicationArchitecture,
   observedApplicationFlow,
   observedRuntimeChanges,
   retrievalIds,
@@ -150,6 +151,52 @@ describe("evaluation explanations", () => {
       "generation",
       "output"
     ]);
+
+    const architecture = observedApplicationArchitecture([run]);
+    expect(architecture.observedRunCount).toBe(1);
+    expect(architecture.nodes.map((node) => [node.layer, node.label])).toEqual([
+      ["request", "Application request"],
+      ["context", "search meeting notes"],
+      ["generation", "generate answer"],
+      ["response", "Application response"]
+    ]);
+    expect(architecture.edges).toEqual(expect.arrayContaining([
+      { source: "request", target: expect.stringContaining("RETRIEVER:search meeting notes") },
+      { source: expect.stringContaining("LLM:generate answer"), target: "response" }
+    ]));
+  });
+
+  it("merges repeated observed components across runs", () => {
+    const first = trace("v1", 3, "a");
+    const second = trace("v2", 6, "b");
+    const modelSpan = {
+      id: "model-1",
+      trace_id: first.id,
+      parent_span_id: null,
+      external_span_id: null,
+      type: "LLM" as const,
+      name: "generate answer",
+      status: "OK" as const,
+      input: null,
+      output: { answer: "answer" },
+      metadata: {},
+      attributes: {},
+      provider: "local",
+      model_name: "small-model",
+      input_tokens: 10,
+      output_tokens: 5,
+      estimated_cost: null,
+      started_at: "2026-09-18T00:00:00Z",
+      ended_at: "2026-09-18T00:00:00.500Z",
+      duration_ms: 500,
+      error: null,
+      created_at: "2026-09-18T00:00:00.500Z"
+    };
+    first.spans = [modelSpan];
+    second.spans = [{ ...modelSpan, id: "model-2", trace_id: second.id }];
+
+    const architecture = observedApplicationArchitecture([first, second]);
+    expect(architecture.nodes.find((node) => node.layer === "generation")?.observedRuns).toBe(2);
   });
 
   it("highlights the earliest supported failed evaluation stage", () => {

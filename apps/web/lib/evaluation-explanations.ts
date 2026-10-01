@@ -293,6 +293,24 @@ export interface ObservedApplicationStage {
   status: "OK" | "ERROR" | "UNKNOWN";
 }
 
+export type ArchitectureLayer = "request" | "orchestration" | "context" | "generation" | "response";
+
+export interface ObservedArchitectureNode {
+  id: string;
+  layer: ArchitectureLayer;
+  label: string;
+  stereotype: string;
+  detail: string;
+  status: "OK" | "ERROR" | "UNKNOWN";
+  observedRuns: number;
+}
+
+export interface ObservedApplicationArchitecture {
+  nodes: ObservedArchitectureNode[];
+  edges: Array<{ source: string; target: string }>;
+  observedRunCount: number;
+}
+
 const stageLabels: Record<ApplicationStage, string> = {
   input: "Question",
   retrieval: "Retrieve evidence",
@@ -307,6 +325,100 @@ function stageForSpan(span: Span): ApplicationStage | null {
   if (span.type === "TOOL") return "tool";
   if (span.type === "LLM") return "generation";
   if (span.type === "AGENT" || span.type === "CHAIN" || span.type === "CUSTOM") return "workflow";
+  return null;
+}
+
+function architectureLayerForSpan(span: Span): ArchitectureLayer {
+  if (span.type === "LLM") return "generation";
+  if (["RETRIEVER", "EMBEDDING", "RERANKER", "TOOL"].includes(span.type)) return "context";
+  return "orchestration";
+}
+
+function architectureDetail(span: Span): string {
+  if (span.type === "LLM") {
+    return [span.provider, span.model_name].filter(Boolean).join(" / ") || "Recorded model call";
+  }
+  if (span.type === "RETRIEVER") return "Retrieval component";
+  if (span.type === "EMBEDDING") return "Embedding component";
+  if (span.type === "RERANKER") return "Reranking component";
+  if (span.type === "TOOL") return "Application tool or action";
+  if (span.type === "AGENT") return "Agent orchestration";
+  if (span.type === "CHAIN") return "Application workflow";
+  return "Instrumented application component";
+}
+
+function architectureNodeId(span: Span): string {
+  return `${span.type}:${span.name}:${span.provider ?? ""}:${span.model_name ?? ""}`;
+}
+
+export function observedApplicationArchitecture(traces: Trace[]): ObservedApplicationArchitecture {
+  const usable = traces.filter((trace) => trace.spans.length > 0);
+  if (!usable.length) return { nodes: [], edges: [], observedRunCount: 0 };
+
+  const runIdsByNode = new Map<string, Set<string>>();
+  const nodes = new Map<string, ObservedArchitectureNode>();
+  const edges = new Map<string, { source: string; target: string }>();
+  for (const trace of usable) {
+    const canonicalIdBySpanId = new Map(trace.spans.map((span) => [span.id, architectureNodeId(span)]));
+    const parentIds = new Set(trace.spans.map((span) => span.parent_span_id).filter(Boolean));
+    for (const span of trace.spans) {
+      const id = architectureNodeId(span);
+      const runIds = runIdsByNode.get(id) ?? new Set<string>();
+      runIds.add(trace.id);
+      runIdsByNode.set(id, runIds);
+      const current = nodes.get(id);
+      nodes.set(id, {
+        id,
+        layer: architectureLayerForSpan(span),
+        label: span.name,
+        stereotype: span.type.toLowerCase(),
+        detail: architectureDetail(span),
+        status: current?.status === "ERROR" || span.status === "ERROR" ? "ERROR" : "OK",
+        observedRuns: runIds.size
+      });
+      const source = span.parent_span_id
+        ? canonicalIdBySpanId.get(span.parent_span_id) ?? "request"
+        : "request";
+      edges.set(`${source}->${id}`, { source, target: id });
+      if (!parentIds.has(span.id)) {
+        edges.set(`${id}->response`, { source: id, target: "response" });
+      }
+    }
+  }
+
+  return {
+    observedRunCount: usable.length,
+    edges: [...edges.values()],
+    nodes: [
+      {
+        id: "request",
+        layer: "request",
+        label: "Application request",
+        stereotype: "input",
+        detail: "Input received by the instrumented application",
+        status: "OK",
+        observedRuns: usable.length
+      },
+      ...nodes.values(),
+      {
+        id: "response",
+        layer: "response",
+        label: "Application response",
+        stereotype: "output",
+        detail: "Output returned by the instrumented application",
+        status: usable.some((trace) => trace.status === "ERROR") ? "ERROR" : "OK",
+        observedRuns: usable.length
+      }
+    ]
+  };
+}
+
+export function architectureLayerForDifference(stage: ApplicationStage | null): ArchitectureLayer | null {
+  if (stage === "input") return "request";
+  if (stage === "retrieval" || stage === "tool") return "context";
+  if (stage === "generation") return "generation";
+  if (stage === "workflow") return "orchestration";
+  if (stage === "output") return "response";
   return null;
 }
 
