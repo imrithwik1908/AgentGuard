@@ -88,9 +88,9 @@ const EVALUATOR_CATALOG: Record<string, EvaluatorInfo> = {
   },
   "builtin.keyword_coverage": {
     category: "Answer Quality",
-    name: "Keyword coverage",
+    name: "Required concepts in answer",
     implemented: true,
-    description: "Scores how many required keywords appear in the generated answer."
+    description: "Checks whether configured words or phrases appear explicitly in the generated answer."
   },
   "builtin.required_content": {
     category: "Answer Quality",

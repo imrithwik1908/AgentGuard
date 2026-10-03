@@ -92,14 +92,18 @@ export function ApplicationArchitecture({
         </div>
       </div>
       {architecture.edges.length ? (
-        <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-200 pt-3 text-xs text-slate-500">
-          <span className="font-semibold uppercase tracking-wide text-slate-400">Observed connections</span>
-          {architecture.edges.slice(0, 8).map((edge) => (
-            <span key={`${edge.source}:${edge.target}`}>
-              {labelById.get(edge.source) ?? edge.source} <span className="text-slate-300">→</span> {labelById.get(edge.target) ?? edge.target}
-            </span>
-          ))}
-        </div>
+        <details className="mt-2 border-t border-slate-200 pt-3 text-xs text-slate-500">
+          <summary className="cursor-pointer font-medium text-slate-600">
+            View recorded component connections
+          </summary>
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
+            {architecture.edges.slice(0, 8).map((edge) => (
+              <span key={`${edge.source}:${edge.target}`}>
+                {labelById.get(edge.source) ?? edge.source} <span className="text-slate-300">→</span> {labelById.get(edge.target) ?? edge.target}
+              </span>
+            ))}
+          </div>
+        </details>
       ) : null}
     </section>
   );

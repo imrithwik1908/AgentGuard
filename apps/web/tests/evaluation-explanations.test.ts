@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   explainEvaluation,
+  evaluationDecision,
+  evaluationExpectation,
+  evaluationObservation,
   firstSupportedDifference,
   observedApplicationArchitecture,
   observedApplicationFlow,
@@ -64,6 +67,14 @@ describe("evaluation explanations", () => {
     const result = explainEvaluation(evaluation());
     expect(result.calculation).toContain("2 found / 3 required = 67%");
     expect(result.missing).toEqual(["four hours"]);
+  });
+
+  it("describes configured keywords as explicit words or phrases instead of vague missing concepts", () => {
+    const result = evaluation();
+    expect(evaluationExpectation(result)).toContain("configured words or phrases");
+    expect(evaluationExpectation(result)).toContain("“four hours”");
+    expect(evaluationObservation(result)).toContain("did not explicitly contain “four hours”");
+    expect(evaluationDecision(result)).toContain("below the configured passing threshold");
   });
 
   it("extracts human-readable run evidence", () => {

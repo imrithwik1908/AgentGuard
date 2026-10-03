@@ -14,6 +14,9 @@ import {
 import { formatPercent, formatScore } from "@/lib/format";
 import {
   explainEvaluation,
+  evaluationDecision,
+  evaluationExpectation,
+  evaluationObservation,
   evaluationReliability,
   architectureLayerForDifference,
   firstSupportedDifference,
@@ -600,6 +603,48 @@ function SectionHeader({ title, description }: { title: string; description: str
   );
 }
 
+function primaryCandidateEvaluation(item: RegressionCase): EvaluationResult | null {
+  const changed = pairedEvaluatorRows(item).find(
+    (row) => row.baseline?.passed !== row.candidate?.passed
+  );
+  return changed?.candidate ?? item.failedEvaluations[0] ?? item.primaryEvaluation;
+}
+
+function CaseStory({ item, candidateLabel }: { item: RegressionCase; candidateLabel: string }) {
+  const evaluation = primaryCandidateEvaluation(item);
+  const answer = traceAnswer(item.candidateTrace);
+  return (
+    <section className="mt-6 border-y border-slate-200 py-1">
+      <div className="grid gap-0 lg:grid-cols-[10rem_1fr]">
+        <div className="py-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+          Expected behavior
+        </div>
+        <p className="border-t border-slate-100 py-4 text-sm leading-6 text-slate-700 lg:border-l lg:border-t-0 lg:pl-5">
+          {evaluation ? evaluationExpectation(evaluation) : "The candidate must satisfy the behavior configured for this scenario."}
+        </p>
+
+        <div className="border-t border-slate-100 py-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+          {candidateLabel} did
+        </div>
+        <div className="border-t border-slate-100 py-4 text-sm leading-6 text-slate-700 lg:border-l lg:pl-5">
+          {answer ? (
+            <blockquote className="line-clamp-4 whitespace-pre-wrap border-l-2 border-slate-300 pl-4">
+              {answer}
+            </blockquote>
+          ) : evaluation ? evaluationObservation(evaluation) : "No candidate answer was recorded."}
+        </div>
+
+        <div className="border-t border-slate-100 py-4 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">
+          Why this result
+        </div>
+        <p className="border-t border-slate-100 py-4 text-sm leading-6 text-slate-700 lg:border-l lg:pl-5">
+          {caseDifferenceExplanation(item)}
+        </p>
+      </div>
+    </section>
+  );
+}
+
 function CaseList({
   items,
   empty,
@@ -648,18 +693,20 @@ function CaseList({
             </div>
           </div>
 
-          <div className="mt-6">
-            <ApplicationArchitecture
-              architecture={observedApplicationArchitecture(item.candidateTrace ? [item.candidateTrace] : [])}
-              highlightedLayer={architectureLayerForDifference(firstSupportedDifference(item.failedEvaluations))}
-              title={`Where AgentGuard first found supporting evidence in ${candidateLabel}`}
-            />
-          </div>
+          <CaseStory item={item} candidateLabel={candidateLabel} />
 
-          <div className="mt-5 border-l-2 border-cyan-500 pl-4 text-sm text-slate-700">
-            <div className="text-xs font-semibold uppercase tracking-wide text-cyan-700">Why AgentGuard classified this result</div>
-            <p className="mt-1 leading-6">{caseDifferenceExplanation(item)}</p>
-          </div>
+          <details className="mt-5 border-b border-slate-200 pb-4">
+            <summary className="cursor-pointer text-sm font-medium text-cyan-800">
+              See where this difference appeared in the application
+            </summary>
+            <div className="mt-5">
+              <ApplicationArchitecture
+                architecture={observedApplicationArchitecture(item.candidateTrace ? [item.candidateTrace] : [])}
+                highlightedLayer={architectureLayerForDifference(firstSupportedDifference(item.failedEvaluations))}
+                title={`Recorded application path for ${candidateLabel}`}
+              />
+            </div>
+          </details>
 
           <details className="mt-5 rounded-xl bg-slate-50/70 px-4 py-3 ring-1 ring-slate-200/70">
             <summary className="cursor-pointer text-sm font-medium text-slate-700">Compare the answers, sources, tools, and checks</summary>
@@ -695,12 +742,9 @@ function CaseList({
                 Open {baselineLabel}
               </Link>
             ) : null}
-            <details className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 md:w-auto md:min-w-[28rem]">
-              <summary className="cursor-pointer font-medium text-slate-700">How AgentGuard scored this</summary>
-              <div className="mt-3 grid min-w-0 gap-3 pb-2 text-xs leading-5 lg:grid-cols-2">
-                <EvidenceColumn title="Baseline evidence" items={item.baselineEvaluations} />
-                <EvidenceColumn title="Candidate evidence" items={item.candidateEvaluations} />
-              </div>
+            <details className="w-full border-t border-slate-200 py-3 text-sm text-slate-600">
+              <summary className="cursor-pointer font-medium text-slate-700">How AgentGuard reached this result</summary>
+              <ScoringComparison item={item} baselineLabel={baselineLabel} candidateLabel={candidateLabel} />
             </details>
           </div>
         </article>
@@ -749,46 +793,56 @@ function OutcomeBadge({ passed, empty }: { passed: boolean; empty: boolean }) {
   return <EvaluationStatusBadge status={passed ? "PASS" : "FAIL"} />;
 }
 
-function EvidenceColumn({ title, items }: { title: string; items: EvaluationResult[] }) {
-  if (items.length === 0) {
-    return (
-      <div>
-        <div className="font-medium text-slate-700">{title}</div>
-        <div className="mt-1 text-slate-500">No stored check result for this side.</div>
-      </div>
-    );
-  }
+function ScoringComparison({
+  item,
+  baselineLabel,
+  candidateLabel
+}: {
+  item: RegressionCase;
+  baselineLabel: string;
+  candidateLabel: string;
+}) {
   return (
-    <div>
-      <div className="font-medium text-slate-700">{title}</div>
-      <div className="mt-2 space-y-2">
-        {items.map((item) => {
-          const info = evaluatorInfo(item.evaluator_name);
-          const reasoning = explainEvaluation(item);
-          return (
-            <div key={item.id} className="rounded-xl bg-white p-2">
-              <div className="flex items-center justify-between gap-2">
-                <span>{info.name}</span>
-                <EvaluationStatusBadge status={item.status} />
+    <div className="mt-4 divide-y divide-slate-200 border-y border-slate-200">
+      {pairedEvaluatorRows(item).map((row) => {
+        const info = evaluatorInfo(row.name);
+        const focus = row.candidate ?? row.baseline;
+        return (
+          <section key={row.name} className="py-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="font-medium text-ink-950">{info.name}</div>
+                <div className="mt-0.5 text-xs text-slate-500">{info.category}</div>
               </div>
-              <div className="mt-1 text-slate-700">{reasoning.summary}</div>
-              <div className="mt-1 text-slate-500">{reasoning.calculation}</div>
-              {reasoning.missing.length ? <div className="mt-1 text-red-700">Missing: {reasoning.missing.join(", ")}</div> : null}
-              <div className="mt-1 text-slate-500">{evaluationReliability(item)}</div>
-              <details className="mt-1">
-                <summary className="cursor-pointer text-slate-500">Advanced details</summary>
-                <div className="mt-1 space-y-1 font-mono text-[11px]">
-                  <div>raw score: {formatScore(item.score)}</div>
-                  <div>threshold: {formatScore(item.threshold)}</div>
-                  <div>evaluator: {item.evaluator_name}@{item.evaluator_version}</div>
-                  <div>method: {item.method}</div>
-                  {item.judge_model ? <div>judge model: {item.judge_model}</div> : null}
+              <div className="flex items-center gap-3 text-xs text-slate-500">
+                <span>{baselineLabel}</span>
+                {row.baseline ? <EvaluationStatusBadge status={row.baseline.status} /> : <span>Not recorded</span>}
+                <span className="text-slate-300">→</span>
+                <span>{candidateLabel}</span>
+                {row.candidate ? <EvaluationStatusBadge status={row.candidate.status} /> : <span>Not recorded</span>}
+              </div>
+            </div>
+            {row.candidate ? (
+              <div className="mt-4 space-y-3 text-sm leading-6">
+                <div><span className="font-medium text-slate-900">Expected: </span>{evaluationExpectation(row.candidate)}</div>
+                <div><span className="font-medium text-slate-900">Observed: </span>{evaluationObservation(row.candidate)}</div>
+                <div><span className="font-medium text-slate-900">Decision: </span>{evaluationDecision(row.candidate)}</div>
+              </div>
+            ) : null}
+            {focus ? (
+              <details className="mt-3 text-xs text-slate-500">
+                <summary className="cursor-pointer">Scoring rule and technical provenance</summary>
+                <div className="mt-2 space-y-1 border-l-2 border-slate-200 pl-3 leading-5">
+                  <div>{explainEvaluation(focus).calculation}</div>
+                  <div>{evaluationReliability(focus)}</div>
+                  <div className="font-mono text-[11px]">score {formatScore(focus.score)} · threshold {formatScore(focus.threshold)} · {focus.evaluator_name}@{focus.evaluator_version} · {focus.method}</div>
+                  {focus.judge_model ? <div className="font-mono text-[11px]">judge model {focus.judge_model}</div> : null}
                 </div>
               </details>
-            </div>
-          );
-        })}
-      </div>
+            ) : null}
+          </section>
+        );
+      })}
     </div>
   );
 }

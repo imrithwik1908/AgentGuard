@@ -8,6 +8,9 @@ import { formatDateTime, formatScore } from "@/lib/format";
 import { ApiRequestError, getProject, getTrace, listEvaluations, listVersions } from "@/lib/api";
 import {
   explainEvaluation,
+  evaluationDecision,
+  evaluationExpectation,
+  evaluationObservation,
   evaluationReliability,
   firstSupportedDifference,
   observedApplicationFlow,
@@ -202,10 +205,26 @@ export default async function TraceDetailPage({
           <div className="mt-4 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200">
             {evaluations.items.map((evaluation) => {
               const reasoning = explainEvaluation(evaluation);
+              const technicalDetails = (
+                <details className="mt-3 text-xs text-slate-500">
+                  <summary className="cursor-pointer">Technical scoring details</summary>
+                  <div className="mt-2 space-y-2 border-l-2 border-slate-200 pl-3 leading-5">
+                    <div>{reasoning.calculation}</div>
+                    <div>{evaluationReliability(evaluation)}</div>
+                    <dl className="space-y-1 font-mono text-[11px] text-slate-500">
+                      <div>raw score: {formatScore(evaluation.score)}</div>
+                      <div>threshold: {formatScore(evaluation.threshold)}</div>
+                      <div>evaluator: {evaluation.evaluator_name}@{evaluation.evaluator_version}</div>
+                      <div>method: {evaluation.method}</div>
+                      {evaluation.judge_model ? <div>judge model: {evaluation.judge_model}</div> : null}
+                    </dl>
+                  </div>
+                </details>
+              );
               return (
               <div
                 key={evaluation.id}
-                className={`p-4 ${
+                className={`px-5 py-5 ${
                   evaluation.passed
                     ? "bg-white"
                     : "bg-red-50/50"
@@ -217,37 +236,32 @@ export default async function TraceDetailPage({
                       {evaluatorInfo(evaluation.evaluator_name).category}
                     </div>
                     <div className="font-medium text-ink-950">
-                      {evaluation.label ?? evaluatorInfo(evaluation.evaluator_name).name}
+                      {evaluatorInfo(evaluation.evaluator_name).name}
                     </div>
                     <p className="mt-1 text-sm leading-6 text-slate-700">
                       {reasoning.summary || checkMeaning(evaluation.evaluator_name, evaluation.passed)}
                     </p>
-                    <div className="mt-1 text-xs text-slate-500">{formatDateTime(evaluation.created_at)}</div>
-                    <details className="mt-2 text-xs text-slate-500">
-                      <summary className="cursor-pointer font-medium text-slate-600">Why this result?</summary>
-                      <div className="mt-2 rounded-lg bg-white p-3 leading-5 text-slate-700">
-                        <div>{reasoning.calculation}</div>
-                        {reasoning.missing.length ? <div className="mt-1 text-red-700">Missing: {reasoning.missing.join(", ")}</div> : null}
-                        <div className="mt-2 border-t border-slate-100 pt-2 text-slate-500">{evaluationReliability(evaluation)}</div>
-                      </div>
-                      <details className="mt-2">
-                        <summary className="cursor-pointer">Technical details</summary>
-                      <dl className="mt-2 grid gap-2 rounded-lg bg-slate-950 p-3 font-mono text-slate-200">
-                        <div>raw score: {formatScore(evaluation.score)}</div>
-                        <div>threshold: {formatScore(evaluation.threshold)}</div>
-                        <div>evaluator: {evaluation.evaluator_name}</div>
-                        <div>version: {evaluation.evaluator_version}</div>
-                        <div>method: {evaluation.method}</div>
-                        {evaluation.judge_model ? <div>judge model: {evaluation.judge_model}</div> : null}
-                      </dl>
-                      </details>
-                    </details>
                   </div>
                   <EvaluationStatusBadge status={evaluation.status} />
                 </div>
-                {evaluation.explanation ? (
-                  <p className="mt-3 text-sm text-slate-600">{evaluation.explanation}</p>
-                ) : null}
+                {!evaluation.passed ? (
+                  <div className="mt-4 border-l-2 border-red-300 pl-4 text-sm leading-6 text-slate-700">
+                    <div><span className="font-medium text-slate-950">Expected: </span>{evaluationExpectation(evaluation)}</div>
+                    <div className="mt-2"><span className="font-medium text-slate-950">Observed: </span>{evaluationObservation(evaluation)}</div>
+                    <div className="mt-2"><span className="font-medium text-slate-950">Why it failed: </span>{evaluationDecision(evaluation)}</div>
+                    {technicalDetails}
+                  </div>
+                ) : (
+                  <details className="mt-3 text-xs text-slate-500">
+                    <summary className="cursor-pointer font-medium text-slate-600">Why this passed</summary>
+                    <div className="mt-2 space-y-2 text-sm leading-6 text-slate-700">
+                      <div><span className="font-medium text-slate-950">Expected: </span>{evaluationExpectation(evaluation)}</div>
+                      <div><span className="font-medium text-slate-950">Observed: </span>{evaluationObservation(evaluation)}</div>
+                      {technicalDetails}
+                    </div>
+                  </details>
+                )}
+                <div className="mt-3 text-xs text-slate-400">Evaluated {formatDateTime(evaluation.created_at)}</div>
               </div>
               );
             })}

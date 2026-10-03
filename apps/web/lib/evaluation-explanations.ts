@@ -10,6 +10,11 @@ export interface ScoreExplanation {
   missing: string[];
 }
 
+function quoted(values: string[]): string {
+  if (!values.length) return "the configured requirement";
+  return values.map((value) => `“${value}”`).join(values.length > 2 ? ", " : " and ");
+}
+
 function record(value: JsonValue | Record<string, JsonValue> | null | undefined) {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, JsonValue>)
@@ -206,6 +211,99 @@ export function evaluationReliability(evaluation: EvaluationResult): string {
     return "Measures whether debugging evidence was recorded. It does not measure answer quality.";
   }
   return "Deterministic and repeatable for the same stored evidence. Its accuracy is limited to the explicit rule; it does not infer unstated meaning.";
+}
+
+export function evaluationExpectation(evaluation: EvaluationResult): string {
+  const reasoning = explainEvaluation(evaluation);
+  const threshold = numeric(evaluation.threshold) ?? 1;
+
+  if (evaluation.evaluator_name === "builtin.keyword_coverage") {
+    const requiredCount = Math.max(1, Math.ceil(reasoning.expected.length * threshold));
+    return `The answer must explicitly include at least ${requiredCount} of ${reasoning.expected.length} configured words or phrases: ${quoted(reasoning.expected)}.`;
+  }
+  if (
+    evaluation.evaluator_name === "builtin.answer_contains" ||
+    evaluation.evaluator_name === "builtin.required_content"
+  ) {
+    return `The answer must explicitly include the configured requirement: ${quoted(reasoning.expected)}.`;
+  }
+  if (
+    evaluation.evaluator_name === "builtin.answer_exact" ||
+    evaluation.evaluator_name === "builtin.exact_answer"
+  ) {
+    return `The normalized answer must exactly match: ${quoted(reasoning.expected)}.`;
+  }
+  if (evaluation.evaluator_name === "builtin.required_source") {
+    return `The run must retrieve every required source: ${quoted(reasoning.expected)}.`;
+  }
+  if (evaluation.evaluator_name === "builtin.expected_tool") {
+    return `The application must call every expected tool: ${quoted(reasoning.expected)}.`;
+  }
+  if (evaluation.evaluator_name === "builtin.forbidden_tool") {
+    return `The application must avoid the prohibited tools configured for this scenario.`;
+  }
+  if (evaluation.evaluator_name.includes("latency")) {
+    return reasoning.expected.length
+      ? `The complete run must finish within ${reasoning.expected[0].replace("At most ", "")}.`
+      : "The complete run must stay within the configured latency budget.";
+  }
+  if (
+    evaluation.evaluator_name.includes("runtime") ||
+    evaluation.evaluator_name.includes("trace_health.status")
+  ) {
+    return "The application must complete without a top-level runtime error.";
+  }
+  if (evaluation.method === "LLM_JUDGE") {
+    return "The answer must satisfy the stored semantic rubric for this scenario.";
+  }
+  return reasoning.expected.length
+    ? `The run must satisfy: ${quoted(reasoning.expected)}.`
+    : "The run must satisfy the check configured for this scenario.";
+}
+
+export function evaluationObservation(evaluation: EvaluationResult): string {
+  const reasoning = explainEvaluation(evaluation);
+
+  if (evaluation.evaluator_name === "builtin.keyword_coverage") {
+    const found = reasoning.observed.length
+      ? `It explicitly contained ${quoted(reasoning.observed)}`
+      : "It contained none of the configured words or phrases";
+    const missing = reasoning.missing.length
+      ? ` It did not explicitly contain ${quoted(reasoning.missing)}.`
+      : ".";
+    return `${found}.${missing}`.replace("..", ".");
+  }
+  if (
+    evaluation.evaluator_name === "builtin.answer_contains" ||
+    evaluation.evaluator_name === "builtin.required_content"
+  ) {
+    return evaluation.passed
+      ? "The configured text was found explicitly in the recorded answer."
+      : `The recorded answer did not explicitly contain ${quoted(reasoning.missing)}.`;
+  }
+  if (evaluation.evaluator_name === "builtin.required_source") {
+    return reasoning.observed.length
+      ? `The run retrieved ${quoted(reasoning.observed)}.`
+      : "No retrieved source identifiers were recorded.";
+  }
+  if (
+    evaluation.evaluator_name === "builtin.expected_tool" ||
+    evaluation.evaluator_name === "builtin.forbidden_tool"
+  ) {
+    return reasoning.observed.length
+      ? `The run called ${quoted(reasoning.observed)}.`
+      : "No tool calls were recorded.";
+  }
+  if (reasoning.observed.length) return `AgentGuard observed ${quoted(reasoning.observed)}.`;
+  return reasoning.summary;
+}
+
+export function evaluationDecision(evaluation: EvaluationResult): string {
+  const reasoning = explainEvaluation(evaluation);
+  if (evaluation.passed) {
+    return `${reasoning.summary} AgentGuard therefore marked this check as passed.`;
+  }
+  return `${reasoning.summary} The stored score was below the configured passing threshold, so AgentGuard marked this check as failed.`;
 }
 
 export function traceAnswer(trace: Trace | null): string | null {
